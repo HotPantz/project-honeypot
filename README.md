@@ -1,5 +1,7 @@
 # Project Honeypot
 
+# Project Honeypot
+
 ## Overview
 
 **Project Honeypot** is a C++-based SSH honeypot designed to simulate an accessible shell, attracting and logging malicious attack attempts. The primary objective is to analyze attacker behavior while ensuring the security of the host system.
@@ -8,6 +10,7 @@
 
 - [Overview](#overview)
 - [Features](#features)
+- [File Structure](#file-structure)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Contributing](#contributing)
@@ -22,6 +25,28 @@
 - **Mini File System**: Implements a simplified file system structure, including support for the `wget` command.
 - **User and Group Simulation**: Features commands like `whoami` to enhance the realism of the simulated environment.
 - **Security Measures**: Designed to run within a virtual machine to ensure the host system remains protected from potential threats.
+
+## File Structure
+
+The project is organized as follows:
+
+```
+.
+├── fshell             # Executable file after build
+├── headers
+│   └── shell_parser.hpp   # Header file for parsing shell input and managing command nodes
+├── Makefile           # Build file for easy compilation
+├── README.md          # Documentation for the project
+└── src
+    ├── fshell.cpp         # Main program file that runs the simulated shell
+    └── shell_parser.cpp   # Source file for parsing shell commands and handling input tokens
+```
+
+### Key Files
+
+- **fshell.cpp**: Implements the main loop and command execution logic for the honeypot. It uses a linked list to manage command tokens and interacts with the shell_parser module to handle various shell functionalities.
+- **shell_parser.hpp & shell_parser.cpp**: Define and implement the Node class and parsing functions for command tokens. `shell_parser.cpp` provides utilities for tokenizing commands, handling redirections and pipes, and simulating command execution.
+- **Makefile**: Automates the build process, compiling all necessary files into the `fshell` executable.
 
 ## Installation
 
@@ -43,9 +68,6 @@
 2. **Build the Project**
 
     ```bash
-    mkdir build
-    cd build
-    cmake ..
     make
     ```
 
@@ -58,10 +80,10 @@
 
 1. **Run the Honeypot**
 
-    Navigate to the build directory and execute the honeypot:
+    Execute the honeypot program from the main directory:
 
     ```bash
-    ./honeypot
+    ./fshell
     ```
 
 2. **Configure Network Settings**
@@ -88,16 +110,9 @@ This project is licensed under the MIT License. You are free to use, modify, and
 ## Contact
 
 For any questions or support, please contact:
-For any questions or support, please contact:
 
-- **Name**: [Frederic MUSIAL](mailto:frederic.musial@ens.uvsq.fr)
-- **Email**: frederic.musial@ens.uvsq.fr
-
-or
-
-- **Name**: [Selyan KABLIA](mailto:selyan.kablia@ens.uvsq.fr)
-- **Email**: selyan.kablia@ens.uvsq.fr
+- **Frederic MUSIAL**: [frederic.musial@ens.uvsq.fr](mailto:frederic.musial@ens.uvsq.fr)
+- **Selyan KABLIA**: [selyan.kablia@ens.uvsq.fr](mailto:selyan.kablia@ens.uvsq.fr)
 
 _Disclaimer: This honeypot is intended for educational and research purposes only. Ensure you comply with all relevant laws and regulations when deploying and using this software._
 
----
