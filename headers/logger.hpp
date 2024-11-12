@@ -1,3 +1,4 @@
+// 12-11-2024 Selyan KABLIA Created the file, Added function declarations for logging and IP pseudonym generation
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 

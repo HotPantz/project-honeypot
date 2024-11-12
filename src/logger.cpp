@@ -1,3 +1,5 @@
+// 12-11-2024 Selyan KABLIA created this file to log commands, date, IP, and pseudonym with generated pseudonym for each IP
+
 #include "../headers/logger.hpp"
 #include <curl/curl.h>  // Required for libcurl
 #include <fstream>
