@@ -1,9 +1,10 @@
 # Source files
-SRC=src/fshell.cpp src/shell_parser.cpp
+SRC=src/fshell.cpp src/shell_parser.cpp src/logger.cpp src/main.cpp
 
 # Target to build the fshell executable
-fshell : 
-	g++ -Wall $(SRC) -o bin/fshell
+fshell: $(SRC)
+	g++ -lcurl -Wall $(SRC) -o bin/fshell
 
 # Target to clean up the build
-clean : rm bin/fshell
+clean:
+	rm -f bin/fshell
