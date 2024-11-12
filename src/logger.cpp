@@ -71,7 +71,7 @@ std::string generate_unique_id() {
 
 // Helper function to generate a meaningful pseudonym
 std::string generate_random_pseudonym() {
-    std::mt19937 rng(std::random_device{}());
+    static std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<> adjDist(0, adjectives.size() - 1);
     std::uniform_int_distribution<> nounDist(0, nouns.size() - 1);
 
