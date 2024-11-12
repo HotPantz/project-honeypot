@@ -17,34 +17,34 @@ public:
     Node(const std::string& token) : token(token), next(nullptr) {}
 };
 
-/*  Décompose l'entrée en tokens (si séparés par des espaces) 
-    et crée une liste chaînée les contenant */ 
+/*  Splits the input into tokens (if separated by spaces) 
+    and creates a linked list containing them */ 
 void tokenize(const std::string& istream, Node*& head);
 
-/*  Décompose l'entrée en tokens comme tokenize mais prend
-    en compte les guillemets : ' ' et " " */
+/*  Splits the input into tokens like tokenize but takes
+    quotes into account: ' ' and " " */
 void tokenize2(const std::string& istream, Node*& head);
 
-/*  Supprime les espaces avant la commande  */
+/*  Removes leading spaces before the command */
 std::string removeLeadingSpaces(const std::string& str);
 
-/* Récupère le premier token de la liste et le supprime */
+/* Retrieves the first token from the list and removes it */
 std::string pop(Node*& head);
 
-/* Ajoute un token à la fin de la liste */
+/* Adds a token to the end of the list */
 void enqueue(Node*& head, const std::string& token);
 
-/* Libère la mémoire de tous les noeuds de la liste */
+/* Frees the memory of all nodes in the list */
 void freeList(Node*& head);
 
-/*  Récupère le n-ième token dans la liste
-    Si n > nb. tokens : renvoie une chaîne vide, sinon renvoie le token */
+/*  Retrieves the n-th token in the list
+    If n > number of tokens: returns an empty string, otherwise returns the token */
 std::string getNthToken(Node* head, int n);
 
-/* Affiche la liste des tokens (utilisé pour le debug) */
+/* Prints the list of tokens (used for debugging) */
 void printList(Node* head);
 
-/* Crée une cellule de liste contenant le token */
+/* Creates a list node containing the token */
 Node* createNode(const std::string& token);
 
 #endif // SHELL_PARSER_HPP
