@@ -80,7 +80,7 @@ std::string generate_random_pseudonym() {
 
 // Retrieves or assigns a pseudonym and ID based on IP
 IPInfo get_pseudonym(const std::string& ip) {
-    static const std::string pseudoFile = "/home/hotpantz/Documents/project-honeypot/pseudonyms.txt";
+    static const std::string pseudoFile = "../pseudonyms.txt";
     std::ifstream infile(pseudoFile);
     std::ofstream outfile;
 
@@ -115,7 +115,7 @@ IPInfo get_pseudonym(const std::string& ip) {
 
 // Initializes the log file with a timestamped name
 void initialize_log() {
-    std::string logDir = "/home/hotpantz/Documents/project-honeypot/logs";
+    std::string logDir = "../logs";
     struct stat info;
     if (stat(logDir.c_str(), &info) != 0) {
         if (mkdir(logDir.c_str(), 0777) != 0) {
