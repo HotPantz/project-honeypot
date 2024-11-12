@@ -1,3 +1,6 @@
+// XX-XX-2023 Frederic MUSIAL made the base of the code
+// 12-11-2024 Selyan KABLIA separated the code with a main file and a header file
+
 #include "../headers/fshell.hpp"
 #include "../headers/shell_parser.hpp"
 #include <iostream>

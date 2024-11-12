@@ -1,3 +1,5 @@
+// 12-11-2024 Selyan KABLIA created the main to make the logger, fshell, and shell parser work together
+
 #include "../headers/fshell.hpp"
 #include "../headers/shell_parser.hpp"
 #include "../headers/logger.hpp"
