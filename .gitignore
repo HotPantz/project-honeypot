@@ -1,3 +1,7 @@
+# Ignore all files in the bin directory except for .gitkeep
+# Ignore the .vscode directory
 bin/*
 !bin/.gitkeep
+logs/*
+!logs/.gitkeep
 .vscode
