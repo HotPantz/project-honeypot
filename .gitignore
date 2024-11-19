@@ -5,3 +5,4 @@ bin/*
 logs/*
 !logs/.gitkeep
 .vscode
+dashboard/honeypot_dashboard/venv
