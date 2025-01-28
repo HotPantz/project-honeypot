@@ -1,0 +1,33 @@
+-- logs each SSH connection
+CREATE TABLE IF NOT EXISTS connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT NOT NULL,
+    pseudo_id TEXT NOT NULL,
+    duration INTEGER,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- logs commands executed during connections
+CREATE TABLE IF NOT EXISTS command_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    command TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- tracks the number of connections per IP and pseudo_id
+CREATE TABLE IF NOT EXISTS connection_count (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT NOT NULL,
+    pseudo_id TEXT NOT NULL,
+    connection_count INTEGER DEFAULT 1,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- logs commands per user
+CREATE TABLE IF NOT EXISTS user_commands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    connection_id INTEGER NOT NULL,
+    command TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (connection_id) REFERENCES connections(id)
+);
