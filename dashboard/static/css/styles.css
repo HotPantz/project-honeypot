@@ -1,0 +1,18 @@
+#live {
+    background-color: black !important;
+    color: white !important;
+    font-family: monospace !important;
+    padding: 10px !important;
+    height: 300px !important;
+    overflow-y: scroll !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+}
+
+#live span.terminal-prompt {
+    color: green !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: inline !important;
+    line-height: 1 !important;
+}

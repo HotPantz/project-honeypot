@@ -5,6 +5,7 @@ import json
 import time
 import os
 import sqlite3
+import pymysql
 
 HOST_KEY = paramiko.RSAKey(filename='test_rsa.key')
 CONNECTIONS_FILE = 'connections.json'
@@ -30,11 +31,30 @@ class Server(paramiko.ServerInterface):
         return paramiko.AUTH_SUCCESSFUL
 
 def log_connection(ip, pseudo_id, duration):
-    conn = sqlite3.connect('honeypot.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO connections (ip, pseudo_id, duration) VALUES (?, ?, ?)', (ip, pseudo_id, duration))
-    conn.commit()
-    conn.close()
+    connection = pymysql.connect(host=DB_HOST,
+                                 user=DB_USER,
+                                 password=DB_PASSWORD,
+                                 database=DB_NAME)
+    try:
+        with connection.cursor() as cursor:
+            sql = "INSERT INTO connections (ip, pseudo_id, duration) VALUES (%s, %s, %s)"
+            cursor.execute(sql, (ip, pseudo_id, duration))
+        connection.commit()
+    finally:
+        connection.close()
+
+def log_command(connection_id, command):
+    connection = pymysql.connect(host=DB_HOST,
+                                 user=DB_USER,
+                                 password=DB_PASSWORD,
+                                 database=DB_NAME)
+    try:
+        with connection.cursor() as cursor:
+            sql = "INSERT INTO user_commands (connection_id, command) VALUES (%s, %s)"
+            cursor.execute(sql, (connection_id, command))
+        connection.commit()
+    finally:
+        connection.close()
 
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
@@ -52,14 +72,32 @@ def handle_connection(client, addr):
         return
 
     print(f'Authenticated connection from {addr[0]}')
-
-    # Log the connection
-    pseudo_id = 'user123'  # Replace with actual pseudo ID logic
-    duration = '5m'  # Replace with actual duration logic
-    log_connection(addr[0], pseudo_id, duration)
-
-    chan.send('Welcome to the honeypot!\n')
-    chan.close()
+    
+    # Log the connection and get the connection_id
+    pseudo_id = "unique_session_id"  # Replace with actual logic to generate pseudo_id
+    start_time = time.time()
+    
+    conn = sqlite3.connect('honeypot.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO connections (ip, pseudo_id, duration) VALUES (?, ?, ?)', 
+              (addr[0], pseudo_id, 0))
+    connection_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    try:
+        while True:
+            if chan.recv_ready():
+                command = chan.recv(1024).decode('utf-8').strip()
+                if command:
+                    log_command(connection_id, command)
+    except Exception as e:
+        print(f'Connection error: {e}')
+    finally:
+        duration = int(time.time() - start_time)
+        log_connection(addr[0], pseudo_id, duration)
+        chan.close()
+        transport.close()
 
 def start_ssh_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
