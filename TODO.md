@@ -1,9 +1,9 @@
 # Project Honeypot TODO
 
 ## Tasks
-- [ ] Set up honeypot environment
+- [x] Set up honeypot environment
 - [X] Configure logging for command usage
-- [ ] Implement connection logging with IP, pseudo ID, duration, time, and date
+- [x] Implement connection logging with IP, pseudo ID, duration, time, and date
 - [ ] Test honeypot functionality
 - [ ] Analyze collected data
 - [ ] Create a dashboard for log access and statistics using Flask
@@ -13,7 +13,7 @@
 - [ ] Simulate sudo behavior with fake permission denied messages
 - [ ] Use IP geolocation services for logging attacker’s location
 - [ ] Tailor responses based on geolocation data
-- [ ] Track and log session duration
+- [x] Track and log session duration
 - [ ] Log failed command attempts
 - [ ] Send real-time notifications for specific command executions
 - [ ] Monitor and log brute force and command pattern detection
@@ -31,20 +31,25 @@
 - [ ] Simulate restricted access to certain folders and files
 - [ ] Populate ps output with decoy processes
 
-## Command Usage Log
-| Timestamp           | Command        |
-|---------------------|----------------|
-| YYYY-MM-DD HH:MM:SS | example_command|
+## Command Usage Log : user_commands
 
-## Connection Log
-| Timestamp           | IP Address     | Pseudo ID | Duration |
-|---------------------|----------------|-----------|----------|
-| YYYY-MM-DD HH:MM:SS | 192.168.1.1    | user123   | 5m       |
+| id | connection_id | command   | timestamp           |
+|----|---------------|-----------|---------------------|
+| 1  | 3             | fastfetch | 2025-02-02 20:25:37 |
+| 2  | 3             | ls        | 2025-02-02 20:25:46 |
+| 3  | 3             | exit      | 2025-02-02 20:25:48 |
 
-## Connection Count Log
-| IP Address     | Pseudo ID | Connection Count |
-|----------------|-----------|------------------|
-| 192.168.1.1    | user123   | 10               |
+## Connection Log : connections
+
+| id | ip        | pseudo_id           | duration | timestamp           |
+|----|-----------|---------------------|----------|---------------------|
+| 1  | 127.0.0.1 | 1738517455.8485122  | 0        | 2025-02-02 18:30:55 |
+
+## Connection Count Log : NOT YET WORKING
+
+| IP Address   | Pseudo ID | Connection Count |
+|--------------|-----------|------------------|
+| 192.168.1.1  | user123   | 10               |
 
 ## Dashboard
 - Access to all logs
