@@ -54,7 +54,7 @@ The project is organized as follows:
 
 - **C++ Compiler**: Ensure you have a C++ compiler installed (e.g., `g++`).
 - **CMake**: Required for building the project.
-- **Virtualization Software**: Tools like VirtualBox or VMware to set up a secure virtual environment.
+- **Python & Dependencies**: pip install flask flask-socketio paramiko pymysql python-dotenv
 
 ### Steps
 
