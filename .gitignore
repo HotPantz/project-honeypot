@@ -1,8 +1,12 @@
 # Ignore all files in the bin directory except for .gitkeep
 # Ignore the .vscode directory
-bin/*
+shell-emu/bin/*
 !bin/.gitkeep
 logs/*
 !logs/.gitkeep
 .vscode
 dashboard/honeypot_dashboard/venv
+.venv
+.env
+*.pyc
+__pycache__/
