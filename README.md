@@ -1,7 +1,5 @@
 # Project Honeypot
 
-# Project Honeypot
-
 ## Overview
 
 **Project Honeypot** is a C++-based SSH honeypot designed to simulate an accessible shell, attracting and logging malicious attack attempts. The primary objective is to analyze attacker behavior while ensuring the security of the host system.
@@ -21,7 +19,7 @@
 
 - **SSH Server Simulation**: Emulates an open SSH server that provides an interactive shell without requiring authentication.
 - **Command Simulation**: Supports basic shell commands such as `sudo`, `cd`, `ls`, and more.
-- **Command Logging**: Records all executed commands into a log file for detailed analysis of attacker activities.
+- **Command Logging**: Records all executed commands into log files for detailed analysis of attacker activities.
 - **Mini File System**: Implements a simplified file system structure, including support for the `wget` command.
 - **User and Group Simulation**: Features commands like `whoami` to enhance the realism of the simulated environment.
 - **Security Measures**: Designed to run within a virtual machine to ensure the host system remains protected from potential threats.
@@ -32,21 +30,63 @@ The project is organized as follows:
 
 ```
 .
-├── fshell             # Executable file after build
-├── headers
-│   └── shell_parser.hpp   # Header file for parsing shell input and managing command nodes
-├── Makefile           # Build file for easy compilation
-├── README.md          # Documentation for the project
-└── src
-    ├── fshell.cpp         # Main program file that runs the simulated shell
-    └── shell_parser.cpp   # Source file for parsing shell commands and handling input tokens
+├── .env                  # Environment configuration file
+├── .gitignore            # Git ignore rules
+├── dashboard             # Flask dashboard for visualization and control
+│   ├── app.py            # Main Flask application
+│   ├── static/           # Static assets for the dashboard
+│   ├── templates/        # HTML templates for the dashboard
+│   └── venv/             # Virtual environment for Python dependencies
+├── data/                 # Data files used by the project
+├── logs/                 # Directory containing shell command log files
+│   ├── shell_log_2024-11-12_16-04-23.txt
+│   ├── shell_log_2025-02-02_19-21-44.txt
+│   └── ...               # Additional log files
+├── 
+
+mariadb_setup.sh
+
+      # Script to set up the MariaDB database
+├── 
+
+mariadb_tables.txt
+
+    # SQL commands for database tables
+├── 
+
+pseudonyms.txt
+
+        # List of pseudonyms for simulated users
+├── 
+
+README.md
+
+             # Project documentation
+├── shell-emu             # Honeypot emulator directory
+│   ├── bin/              # Contains the `fshell` executable after build
+│   ├── headers/          # Header files (e.g., for shell parsing)
+│   └── ...               # Additional source files and assets
+├── ssh-server            # SSH server simulation files
+│   └── ssh_server.py     # Python script for the SSH server
+├── 
+
+ssh_user_setup.sh
+
+     # Script for setting up simulated SSH users
+└── 
+
+TODO.md
+
+               # Project to-do list and roadmap
 ```
 
 ### Key Files
 
-- **fshell.cpp**: Implements the main loop and command execution logic for the honeypot. It uses a linked list to manage command tokens and interacts with the shell_parser module to handle various shell functionalities.
-- **shell_parser.hpp & shell_parser.cpp**: Define and implement the Node class and parsing functions for command tokens. `shell_parser.cpp` provides utilities for tokenizing commands, handling redirections and pipes, and simulating command execution.
-- **Makefile**: Automates the build process, compiling all necessary files into the `fshell` executable.
+- **fshell.cpp**: Implements the main loop and command execution logic for the honeypot. It uses a linked list to manage command tokens and interfaces with the shell parser to simulate shell functionalities.
+- **shell_parser.hpp & shell_parser.cpp**: Define and implement the parsing functions and the Node class for command tokens. These files handle tokenizing input, managing command sequences, redirections, and pipes.
+- **Makefile**: Automates the build process, compiling all necessary files into the `fshell` executable located in `shell-emu/bin/`.
+- **dashboard/app.py**: Runs the Flask dashboard for monitoring and control.
+- **ssh-server/ssh_server.py**: Emulates the SSH server that provides an interactive shell interface to external connections.
 
 ## Installation
 
@@ -54,7 +94,11 @@ The project is organized as follows:
 
 - **C++ Compiler**: Ensure you have a C++ compiler installed (e.g., `g++`).
 - **CMake**: Required for building the project.
-- **Python & Dependencies**: pip install flask flask-socketio paramiko pymysql python-dotenv
+- **Python & Dependencies**: Install the required Python packages:
+  
+  ```bash
+  pip install flask flask-socketio paramiko pymysql python-dotenv
+  ```
 
 ### Steps
 
@@ -67,6 +111,12 @@ The project is organized as follows:
 
 2. **Build the Project**
 
+    Navigate to the 
+
+shell-emu
+
+ directory and run:
+
     ```bash
     make
     ```
@@ -78,21 +128,47 @@ The project is organized as follows:
 
 ## Usage
 
-1. **Run the Honeypot**
+1. **Run the Honeypot Shell**
 
-    Execute the honeypot program from the main directory:
+    Execute the honeypot CLI (located in 
+
+bin
+
+):
 
     ```bash
-    ./fshell
+    ./shell-emu/bin/fshell
     ```
 
-2. **Configure Network Settings**
+2. **Start the SSH Server**
+
+    Run the SSH server to simulate incoming SSH connections:
+
+    ```bash
+    python ssh-server/ssh_server.py
+    ```
+
+3. **Launch the Dashboard**
+
+    Start the Flask dashboard by navigating to the dashboard directory and running:
+
+    ```bash
+    python dashboard/app.py
+    ```
+
+4. **Monitor Activity**
+
+    - All command logs generated by the honeypot are saved in the 
+
+logs
+
+ directory.
+    - Analyze these log files to understand attacker behaviors and strategies.
+
+5. **Configure Network Settings**
+
     - Forward the SSH port (default is 22) from your router to the IP address of the virtual machine running the honeypot.
     - Ensure that the honeypot is accessible from the internet to attract potential attackers.
-
-3. **Monitor Activity**
-    - All commands executed by attackers are logged in the `commands.log` file located in the project directory.
-    - Analyze the log file to understand attacker behaviors and strategies.
 
 ## Contributing
 
@@ -115,4 +191,3 @@ For any questions or support, please contact:
 - **Selyan KABLIA**: [selyan.kablia@ens.uvsq.fr](mailto:selyan.kablia@ens.uvsq.fr)
 
 _Disclaimer: This honeypot is intended for educational and research purposes only. Ensure you comply with all relevant laws and regulations when deploying and using this software._
-
