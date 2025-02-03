@@ -45,12 +45,6 @@
 |----|-----------|---------------------|----------|---------------------|
 | 1  | 127.0.0.1 | 1738517455.8485122  | 0        | 2025-02-02 18:30:55 |
 
-## Connection Count Log : NOT YET WORKING
-
-| IP Address   | Pseudo ID | Connection Count |
-|--------------|-----------|------------------|
-| 192.168.1.1  | user123   | 10               |
-
 ## Dashboard
 - Access to all logs
 - Access to real-time logs
