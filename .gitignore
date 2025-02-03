@@ -1,7 +1,7 @@
 # Ignore all files in the bin directory except for .gitkeep
 # Ignore the .vscode directory
 shell-emu/bin/*
-!bin/.gitkeep
+!shell-emu/bin/.gitkeep
 logs/*
 !logs/.gitkeep
 .vscode
