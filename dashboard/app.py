@@ -1,10 +1,8 @@
-import json
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 import pymysql
-import threading
-import time
 import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -14,11 +12,12 @@ def add_header(response):
     response.cache_control.no_store = True
     return response
 
-# Database connection parameters
-DB_HOST = 'localhost'
-DB_USER = 'honeypot_user'
-DB_PASSWORD = 'SecureP@ssw0rd'  # Use the password you set in mariadb_setup.sh
-DB_NAME = 'honeypot_db'
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../.env'))
+DB_HOST = os.getenv('DB_HOST')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+
 
 def get_db_connection():
     return pymysql.connect(host=DB_HOST,
@@ -50,25 +49,27 @@ def get_live():
     logs = logs[-max_lines:]
     return jsonify(logs)
 
-# Route to get SSH connections
+#fetching connections from the database
 @app.route('/connections')
 def get_connections():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            sql = "SELECT * FROM connection_count ORDER BY timestamp DESC LIMIT 50"
+            sql = "SELECT * FROM connections ORDER BY timestamp DESC LIMIT 50"
             cursor.execute(sql)
             connections = cursor.fetchall()
         return jsonify(connections)
     finally:
         connection.close()
 
-# Route to get command logs
+#fetching the commands from the database
 @app.route('/commands')
 def get_commands():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
+            #joining the commands with the connections table to get the ip and pseudo_id
+            #and ordering by the latest
             sql = '''
                 SELECT uc.id, c.ip, c.pseudo_id, uc.command, uc.timestamp
                 FROM user_commands uc
@@ -98,7 +99,5 @@ def emit_new_command(ip, pseudo_id, command, timestamp):
         'timestamp': timestamp
     })
 
-# You can add more functions and routes as needed
-
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
