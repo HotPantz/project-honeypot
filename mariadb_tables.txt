@@ -1,6 +1,6 @@
 -- logs each SSH connection
 CREATE TABLE IF NOT EXISTS connections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
     ip TEXT NOT NULL,
     pseudo_id TEXT NOT NULL,
     duration INTEGER,
@@ -9,9 +9,22 @@ CREATE TABLE IF NOT EXISTS connections (
 
 -- logs commands per user
 CREATE TABLE IF NOT EXISTS user_commands (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
     connection_id INTEGER NOT NULL,
     command TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (connection_id) REFERENCES connections(id)
+);
+
+-- logs IP geolocation data
+CREATE TABLE IF NOT EXISTS ip_geolocations (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    ip TEXT NOT NULL,
+    country TEXT,
+    country_code TEXT;
+    region TEXT,
+    city TEXT,
+    lat REAL,
+    lon REAL,
+    fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

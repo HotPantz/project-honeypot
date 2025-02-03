@@ -49,13 +49,19 @@ def get_live():
     logs = logs[-max_lines:]
     return jsonify(logs)
 
-#fetching connections from the database
+#fetching connections & geolocation data from the database
 @app.route('/connections')
 def get_connections():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            sql = "SELECT * FROM connections ORDER BY timestamp DESC LIMIT 50"
+            sql = """
+                SELECT c.*, g.country, g.country_code, g.region, g.city, g.lat, g.lon
+                FROM connections c
+                LEFT JOIN ip_geolocations g ON c.ip = g.ip
+                ORDER BY c.timestamp DESC
+                LIMIT 50
+            """
             cursor.execute(sql)
             connections = cursor.fetchall()
         return jsonify(connections)
@@ -83,14 +89,45 @@ def get_commands():
     finally:
         connection.close()
 
-# Route to update SSH configuration (implement as needed)
-@app.route('/update_ssh', methods=['POST'])
-def update_ssh():
-    config = request.json
-    # Update SSH configuration logic here
+@app.route('/connections_over_time')
+def connections_over_time():
+    group_by = request.args.get('group_by', 'hour','day')
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            if group_by == 'hour':
+                sql = """
+                    SELECT DATE_FORMAT(timestamp, '%Y-%m-%d') as period, COUNT(*) as count
+                    FROM connections
+                    GROUP BY period
+                    ORDER BY period ASC;
+                """
+            else:
+                sql = """
+                    SELECT DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as period, COUNT(*) as count
+                    FROM connections
+                    GROUP BY period
+                    ORDER BY period ASC;
+                """
+            cursor.execute(sql)
+            data = cursor.fetchall()
+        return jsonify(data)
+    finally:
+        connection.close()
+
+@app.route('/new_command', methods=['POST'])
+def new_command():
+    data = request.get_json()
+    ip = data.get('ip')
+    pseudo_id = data.get('pseudo_id')
+    command = data.get('command')
+    timestamp = data.get('timestamp')
+    # Optionally: persist this command event in a separate table, e.g. command_emits,
+    # if you need to persist real-time events independently.
+    emit_new_command(ip, pseudo_id, command, timestamp)
     return jsonify({'status': 'success'})
 
-# Function to emit new command logs
+# Function to emit new command logs to connected dashboard clients
 def emit_new_command(ip, pseudo_id, command, timestamp):
     socketio.emit('new_command', {
         'ip': ip,
