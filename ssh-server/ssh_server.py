@@ -3,7 +3,6 @@ import select
 import socket
 import threading
 import paramiko
-import json
 import time
 import os
 import signal
@@ -11,7 +10,9 @@ import sys
 import subprocess
 import pymysql
 import pty
+import requests
 from dotenv import load_dotenv
+
 
 #for soft shutdown with CTRL+C
 shutdown_requested = False
@@ -51,12 +52,17 @@ class Server(paramiko.ServerInterface):
         self.event.set()
         return True
 
+def get_db_connection():
+    return pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
 def log_connection(ip, pseudo_id, duration):
-    connection = pymysql.connect(host=DB_HOST,
-                               user=DB_USER,
-                               password=DB_PASSWORD,
-                               database=DB_NAME,
-                               cursorclass=pymysql.cursors.DictCursor)
+    connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
             sql = "INSERT INTO connections (ip, pseudo_id, duration) VALUES (%s, %s, %s)"
@@ -71,11 +77,7 @@ def log_connection(ip, pseudo_id, duration):
 
 #updates the duration of a connection that was inserted to the db by log_connection
 def update_connection_duration(connection_id, duration):
-    connection = pymysql.connect(host=DB_HOST,
-                                 user=DB_USER,
-                                 password=DB_PASSWORD,
-                                 database=DB_NAME,
-                                 cursorclass=pymysql.cursors.DictCursor)
+    connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
             sql = "UPDATE connections SET duration = %s WHERE id = %s"
@@ -88,10 +90,7 @@ def update_connection_duration(connection_id, duration):
         connection.close()
 
 def log_command(connection_id, command):
-    connection = pymysql.connect(host=DB_HOST,
-                                 user=DB_USER,
-                                 password=DB_PASSWORD,
-                                 database=DB_NAME)
+    connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
             sql = "INSERT INTO user_commands (connection_id, command) VALUES (%s, %s)"
@@ -100,6 +99,7 @@ def log_command(connection_id, command):
     finally:
         connection.close()
 
+# Starts a shell, logs the connection and its info and logs the commands in the db
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
     transport.add_server_key(HOST_KEY)
@@ -115,19 +115,24 @@ def handle_connection(client, addr):
         print('No channel.')
         return
 
-    print(f'Authenticated connection from {addr[0]}')
+    #DEBUG
+    ip = addr[0]
+    if ip == '127.0.0.1':
+        ip = '88.124.251.104'
+
+    print(f'Authenticated connection from {ip}')
 
     pseudo_id = str(time.time())
     start_time = time.time()
 
     try:
         # Create a new connection log entry and capture its id.
-        connection_id = log_connection(addr[0], pseudo_id, 0)
+        connection_id = log_connection(ip, pseudo_id, 0)
         print(f"New connection logged with ID: {connection_id}")
+        threading.Thread(target=update_ip_geolocation, args=(ip,)).start()  # run in a thread because it can be slow
 
         # Determine absolute path to the custom shell
         shell_path = os.path.abspath('../shell-emu/bin/fshell')
-
         master_fd, slave_fd = pty.openpty()
 
         # Spawn the custom shell with its stdio attached to the slave end of the pty
@@ -193,6 +198,54 @@ def handle_connection(client, addr):
         update_connection_duration(connection_id, duration)
         chan.close()
         transport.close()
+
+def fetch_geolocation(ip):
+    """
+    Fetch geolocation data for an IP using ip-api.com.
+    """
+    url = f"http://ip-api.com/json/{ip}"
+    try:
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        if data.get('status') == 'success':
+            return {
+                'country': data.get('country'),
+                'country_code': data.get('countryCode'),
+                'region': data.get('regionName'),
+                'city': data.get('city'),
+                'lat': data.get('lat'),
+                'lon': data.get('lon')
+            }
+    except Exception as e:
+        print("Error fetching geolocation:", e)
+    return None
+
+def update_ip_geolocation(ip):
+    # Temporary override for local testing
+    if ip == '127.0.0.1':
+        ip = '88.124.251.104'
+    print(ip)
+
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = "SELECT * FROM ip_geolocations WHERE ip = %s ORDER BY fetched_at DESC LIMIT 1"
+            cursor.execute(sql, (ip,))
+            result = cursor.fetchone()
+            if result:
+                return result
+            geo = fetch_geolocation(ip)
+            if geo:
+                insert_sql = """
+                    INSERT INTO ip_geolocations (ip, country, country_code, region, city, lat, lon)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(insert_sql, (ip, geo['country'], geo['country_code'], geo['region'], geo['city'], geo['lat'], geo['lon']))
+                connection.commit()
+                return geo
+        return None
+    finally:
+        connection.close()
 
 def signal_handler(signum, frame):
     """Handle shutdown signals"""

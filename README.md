@@ -97,7 +97,7 @@ TODO.md
 - **Python & Dependencies**: Install the required Python packages:
   
   ```bash
-  pip install flask flask-socketio paramiko pymysql python-dotenv
+  pip install flask flask-socketio paramiko pymysql python-dotenv requests
   ```
 
 ### Steps
