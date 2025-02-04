@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS ip_geolocations (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     ip TEXT NOT NULL,
     country TEXT,
-    country_code TEXT;
+    country_code TEXT,
     region TEXT,
     city TEXT,
     lat REAL,
