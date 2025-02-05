@@ -45,9 +45,4 @@
 |----|-----------|---------------------|----------|---------------------|
 | 1  | 127.0.0.1 | 1738517455.8485122  | 0        | 2025-02-02 18:30:55 |
 
-## Dashboard
-- Access to all logs
-- Access to real-time logs
-- Statistics
-- Built using Flask
 
