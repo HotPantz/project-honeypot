@@ -11,6 +11,7 @@ import subprocess
 import pymysql
 import pty
 import requests
+import pwd
 from dotenv import load_dotenv
 
 
@@ -115,14 +116,13 @@ def handle_connection(client, addr):
         print('No channel.')
         return
 
-    #DEBUG
+    # DEBUG (local testing)
     ip = addr[0]
     if ip == '127.0.0.1':
         ip = '88.124.251.104'
-
     print(f'Authenticated connection from {ip}')
 
-    pseudo_id = str(time.time())
+    pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP if needed
     start_time = time.time()
 
     try:
@@ -131,16 +131,26 @@ def handle_connection(client, addr):
         print(f"New connection logged with ID: {connection_id}")
         threading.Thread(target=update_ip_geolocation, args=(ip,)).start()  # run in a thread because it can be slow
 
-        # Determine absolute path to the custom shell
-        shell_path = os.path.abspath('../shell-emu/bin/fshell')
+        # Obtain the authenticated user's username and home directory from passwd.
+        username = transport.get_username()
+        try:
+            user_home = pwd.getpwnam(username).pw_dir
+        except KeyError:
+            # Fallback: use current effective user's home if lookup fails
+            user_home = os.path.expanduser("~")
+        print(f"User '{username}' home directory: {user_home}")
+
+        shell_path = os.path.abspath('../shell-emu/bin/fshell')  # Determine absolute path to the custom shell
         master_fd, slave_fd = pty.openpty()
 
-        # Spawn the custom shell with its stdio attached to the slave end of the pty
+        # Spawn the custom shell with its stdio attached to the slave end of the pty,
+        # and set cwd to the authenticated user's home directory.
         shell_process = subprocess.Popen(
             [shell_path],
             stdin=slave_fd,
             stdout=slave_fd,
             stderr=slave_fd,
+            cwd=user_home,
             close_fds=True
         )
         os.close(slave_fd)  # Only master_fd is needed
@@ -165,7 +175,6 @@ def handle_connection(client, addr):
                 try:
                     data = chan.recv(1024)
                     if data:
-                        # Forward the input to the shell
                         os.write(master_fd, data)
                         # Accumulate data for command logging
                         cmd_buffer += data
@@ -199,10 +208,8 @@ def handle_connection(client, addr):
         chan.close()
         transport.close()
 
+
 def fetch_geolocation(ip):
-    """
-    Fetch geolocation data for an IP using ip-api.com.
-    """
     url = f"http://ip-api.com/json/{ip}"
     try:
         response = requests.get(url, timeout=5)
@@ -221,7 +228,7 @@ def fetch_geolocation(ip):
     return None
 
 def update_ip_geolocation(ip):
-    # Temporary override for local testing
+    #debug for local tests
     if ip == '127.0.0.1':
         ip = '88.124.251.104'
     print(ip)
@@ -248,7 +255,6 @@ def update_ip_geolocation(ip):
         connection.close()
 
 def signal_handler(signum, frame):
-    """Handle shutdown signals"""
     global shutdown_requested
     print("\nShutdown requested...")
     shutdown_requested = True

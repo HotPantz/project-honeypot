@@ -2,7 +2,12 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 import pymysql
 import os
+import glob
+from datetime import datetime
+import time
 from dotenv import load_dotenv
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -40,14 +45,39 @@ def index():
 # Route to get live shell output
 @app.route('/live')
 def get_live():
-    # Implement as needed using MariaDB queries or file reading
-    if not os.path.exists('../logs/honeypot.log'):
+    log_lines = []
+    # Calculate the logs path relative to the dashboard folder.
+    logs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../shell-emu/logs')
+    if not os.path.exists(logs_folder):
         return jsonify([])
-    with open('../logs/honeypot.log', 'r') as f:
-        logs = f.readlines()
-    max_lines = 50  # Adjust as needed
-    logs = logs[-max_lines:]
-    return jsonify(logs)
+
+    # Gather all session log files (assumed to be prefixed with "shell_session_")
+    pattern = os.path.join(logs_folder, "shell_session_*.txt")
+    for log_file in glob.glob(pattern):
+        with open(log_file, "r") as f:
+            for line in f:
+                parts = line.strip().split(',')
+                if len(parts) >= 3:
+                    timestamp_str, ip = parts[0], parts[1]
+                    # In case the command contains commas, rejoin remaining parts.
+                    command = ",".join(parts[2:])
+                    # Format the line (assuming timestamp format is sortable e.g. YYYY-MM-DD HH:MM:SS)
+                    formatted = f"[{timestamp_str}] {ip}: {command}"
+                    # Save both the parsed timestamp (for sorting) and the formatted line.
+                    try:
+                        ts = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        ts = datetime.min
+                    log_lines.append((ts, formatted))
+                else:
+                    # Ignore or add raw line in case it doesn't follow the CSV structure.
+                    continue
+
+    # Sort by timestamp
+    log_lines.sort(key=lambda x: x[0])
+    # Extract only the formatted strings and select the last 50 entries
+    formatted_lines = [line for _, line in log_lines][-50:]
+    return jsonify(formatted_lines)
 
 #fetching connections & geolocation data from the database
 @app.route('/connections')
@@ -115,26 +145,49 @@ def connections_over_time():
     finally:
         connection.close()
 
-@app.route('/new_command', methods=['POST'])
-def new_command():
-    data = request.get_json()
-    ip = data.get('ip')
-    pseudo_id = data.get('pseudo_id')
-    command = data.get('command')
-    timestamp = data.get('timestamp')
-    # Optionally: persist this command event in a separate table, e.g. command_emits,
-    # if you need to persist real-time events independently.
-    emit_new_command(ip, pseudo_id, command, timestamp)
-    return jsonify({'status': 'success'})
+def emit_new_live(log_line):
+    socketio.emit('new_live', {'log': log_line})
 
-# Function to emit new command logs to connected dashboard clients
-def emit_new_command(ip, pseudo_id, command, timestamp):
-    socketio.emit('new_command', {
-        'ip': ip,
-        'pseudo_id': pseudo_id,
-        'command': command,
-        'timestamp': timestamp
-    })
+# Dictionary to track file offsets per file so that we only read new content.
+file_offsets = {}
+
+class LogFileEventHandler(FileSystemEventHandler):
+    def on_modified(self, event):
+        if not event.is_directory and event.src_path.endswith('.txt'):
+            # Open file and seek to last known offset.
+            offset = file_offsets.get(event.src_path, 0)
+            try:
+                with open(event.src_path, 'r') as f:
+                    f.seek(offset)
+                    new_lines = f.readlines()
+                    file_offsets[event.src_path] = f.tell()
+                    for line in new_lines:
+                        parts = line.strip().split(',')
+                        if len(parts) >= 3:
+                            timestamp_str, ip = parts[0], parts[1]
+                            command = ",".join(parts[2:])
+                            # Format the line.
+                            formatted = f"[{timestamp_str}] {ip}: {command}"
+                            emit_new_live(formatted)
+            except Exception:
+                # Silently ignore file reading errors.
+                pass
+
+def start_log_watcher():
+    logs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../logs')
+    event_handler = LogFileEventHandler()
+    observer = Observer()
+    observer.schedule(event_handler, logs_folder, recursive=False)
+    observer.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+
+# Start the log watcher in a background thread so that it keeps monitoring new lines.
+socketio.start_background_task(start_log_watcher)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)

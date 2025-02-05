@@ -12,16 +12,24 @@
 int main(int argc, char* argv[]) {
     std::unique_ptr<char[]> istream(new char[MAX_INPUT_LEN]);
     std::unique_ptr<char[]> cwd(new char[MAX_DIR_LEN]);
+    std::string publicIP = "";
 
-    // Initialize the log file at the beginning
-    initialize_log();
+    publicIP = get_public_ip();
+    if(publicIP.empty()) {
+        publicIP = "unknown";
+    }
+    initialize_session_log(publicIP);
 
     while (true) {
         if (getcwd(cwd.get(), MAX_DIR_LEN) == nullptr) {
             std::cerr << "Couldn't get current working directory" << std::endl;
             std::cout << "\033[1m%\033[0m ";
         } else {
-            std::cout << "\033[1m" << cwd.get() << " \033[34m%\033[0m\033[0m ";
+            //std::cout << "\033[1m" << cwd.get() << " \033[34m%\033[0m\033[0m ";
+            std::string fullPath(cwd.get());
+            size_t pos = fullPath.find_last_of('/');
+            std::string baseDir = (pos == std::string::npos) ? fullPath : fullPath.substr(pos + 1);
+            std::cout << "\033[1m" << baseDir << "\033[0m $ ";
         }
 
         if (fgets(istream.get(), MAX_INPUT_LEN, stdin) == nullptr) {
@@ -33,9 +41,7 @@ int main(int argc, char* argv[]) {
             *newline = '\0';
         }
 
-        // Log the command
-        log_command(istream.get());
-
+        log_command(publicIP, istream.get()); //TODO: logging raw text, maybe change to tokenized?
         tokenize2(std::string(istream.get()), head);
 
         if (head == nullptr) {
