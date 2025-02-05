@@ -26,9 +26,10 @@
 - [ ] Simulate different user environments based on fake user-agent
 - [ ] Track and analyze attacker behavior
 - [ ] Display fake vulnerabilities and log exploit attempts
-- [ ] Allow different simulated shell environments
 - [ ] Simulate restricted access to certain folders and files
 - [ ] Populate ps output with decoy processes
+- [ ] Make it so the same ID is used for the same IP in database
+- [ ] Write "User (IP) disconnected " in the live shell output upon disconnect of a user
 
 ## Command Usage Log : user_commands
 
