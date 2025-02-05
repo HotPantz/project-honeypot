@@ -88,6 +88,22 @@ TODO.md
 - **dashboard/app.py**: Runs the Flask dashboard for monitoring and control.
 - **ssh-server/ssh_server.py**: Emulates the SSH server that provides an interactive shell interface to external connections.
 
+## Database structure
+ 
+**Command Usage Log : ```user_commands```** 
+
+| id | connection_id | command   | timestamp           |
+|----|---------------|-----------|---------------------|
+| 1  | 3             | fastfetch | 2025-02-02 20:25:37 |
+| 2  | 3             | ls        | 2025-02-02 20:25:46 |
+| 3  | 3             | exit      | 2025-02-02 20:25:48 |
+
+**Connection Log : ```connections```**
+
+| id | ip        | pseudo_id           | duration | timestamp           |
+|----|-----------|---------------------|----------|---------------------|
+| 1  | 127.0.0.1 | 1738517455.8485122  | 0        | 2025-02-02 18:30:55 |
+
 ## Installation
 
 ### Prerequisites
@@ -97,7 +113,7 @@ TODO.md
 - **Python & Dependencies**: Install the required Python packages:
   
   ```bash
-  pip install flask flask-socketio paramiko pymysql python-dotenv requests
+  pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog
   ```
 
 ### Steps
