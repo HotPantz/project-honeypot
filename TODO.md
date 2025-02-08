@@ -5,6 +5,8 @@
 - [X] Configure logging for command usage
 - [x] Implement connection logging with IP, pseudo ID, duration, time, and date
 - [x] Test honeypot functionality
+- [ ] Create a DB table to log the login credentials in order to see the most common ones
+- [ ] Display various stats on the dashboard like most popular commands, average session duration etc
 - [ ] Analyze collected data
 - [x] Create a dashboard for log access and statistics using Flask
 - [ ] Simulate common shell commands (e.g., `sudo`) to make the user think they are using a real shell
@@ -25,10 +27,9 @@
 - [ ] Integrate IP reputation service for highlighting malicious IPs
 - [ ] Simulate different user environments based on fake user-agent
 - [ ] Track and analyze attacker behavior
-- [ ] Display fake vulnerabilities and log exploit attempts
+- [x] Display fake vulnerabilities and log exploit attempts
 - [ ] Simulate restricted access to certain folders and files
 - [ ] Populate ps output with decoy processes
-- [ ] Make it so the same ID is used for the same IP in database
 - [ ] Write "User (IP) disconnected " in the live shell output upon disconnect of a user
 
 ## Command Usage Log : user_commands
