@@ -2,12 +2,12 @@
 
 ## Tasks
 - [x] Set up honeypot environment
-- [X] Configure logging for command usage
+- [x] Configure logging for command usage
 - [x] Implement connection logging with IP, pseudo ID, duration, time, and date
 - [x] Test honeypot functionality
+- [ ] Write "User (IP) disconnected " in the live shell output upon disconnect of a user
 - [ ] Create a DB table to log the login credentials in order to see the most common ones
 - [ ] Display various stats on the dashboard like most popular commands, average session duration etc
-- [ ] Analyze collected data
 - [x] Create a dashboard for log access and statistics using Flask
 - [ ] Simulate common shell commands (e.g., `sudo`) to make the user think they are using a real shell
 - [ ] Implement deceptive command responses for common system commands
@@ -15,22 +15,22 @@
 - [ ] Simulate sudo behavior with fake permission denied messages
 - [x] Use IP geolocation services for logging attacker’s location
 - [x] Track and log session duration
-- [ ] Log failed command attempts
+- [x] Log failed command attempts
 - [ ] Send real-time notifications for specific command executions
 - [ ] Monitor and log brute force and command pattern detection
 - [ ] Implement rate limiting for command execution
 - [ ] Detect and trap attempts to exit the shell
 - [ ] Create honey files for fake file download
 - [x] Add visual analytics to the dashboard
-- [ ] Display a real-time command feed on the dashboard
+- [x] Display a real-time command feed on the dashboard
 - [ ] Enable customizable alerts for suspicious activity
 - [ ] Integrate IP reputation service for highlighting malicious IPs
 - [ ] Simulate different user environments based on fake user-agent
-- [ ] Track and analyze attacker behavior
-- [x] Display fake vulnerabilities and log exploit attempts
+- [ ] Display fake vulnerabilities and log exploit attempts
 - [ ] Simulate restricted access to certain folders and files
 - [ ] Populate ps output with decoy processes
-- [ ] Write "User (IP) disconnected " in the live shell output upon disconnect of a user
+
+TOTAL COMPLETED : 10 / 28
 
 ## Command Usage Log : user_commands
 
