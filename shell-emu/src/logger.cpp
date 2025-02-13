@@ -99,6 +99,18 @@ void log_command(const std::string& userIp, const std::string& command) {
     }
 }
 
+
+// Logs the disconnection message
+void log_disconnection(const std::string& userIp, int duration, int commandCount) {
+    if(sessionLogFile.is_open()) {
+        std::ostringstream oss;
+        oss << "User with IP " << userIp << " disconnected after " << duration << " seconds, executing " << commandCount << " commands.\n";
+        sessionLogFile << oss.str();
+        sessionLogFile.flush();
+    }
+}
+
+
 // Closes the session log file 
 void close_session_log() {
     if (sessionLogFile.is_open()) {

@@ -20,4 +20,6 @@ void close_log();
 // Retrieves the public IP address of the user
 std::string get_public_ip();
 
+void log_disconnection(const std::string& userIp, int duration, int commandCount);
+
 #endif // LOGGER_HPP
