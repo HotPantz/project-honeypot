@@ -7,7 +7,7 @@
 - [x] Test honeypot functionality F
 - [ ] Add Authentification methods for SSH server
 - [ ] Create a DB table to log the login credentials in order to see the most common ones 
-- [ ] Write "User (IP) disconnected " in the live shell output upon disconnect of a user 
+- [x] Write "User (IP) disconnected " in the live shell output upon disconnect of a user 
 - [ ] Display various stats on the dashboard like most popular commands, average session duration etc
 - [x] Create a dashboard for log access and statistics using Flask F
 - [ ] Simulate common shell commands (e.g., `sudo`) to make the user think they are using a real shell
@@ -29,7 +29,7 @@
 - [ ] Simulate restricted access to certain folders and files
 - [ ] Populate ps output with decoy processes
 
-TOTAL COMPLETED : 10 / 27
+TOTAL COMPLETED : 11 / 27
 
 ## Command Usage Log : user_commands
 
