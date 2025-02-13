@@ -8,6 +8,11 @@
 #include <memory>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <chrono>
+
+// Ajoutez ces variables globales
+auto sessionStart = std::chrono::steady_clock::now();
+int commandCount = 0;
 
 int main(int argc, char* argv[]) {
     std::unique_ptr<char[]> istream(new char[MAX_INPUT_LEN]);
@@ -25,7 +30,6 @@ int main(int argc, char* argv[]) {
             std::cerr << "Couldn't get current working directory" << std::endl;
             std::cout << "\033[1m%\033[0m ";
         } else {
-            //std::cout << "\033[1m" << cwd.get() << " \033[34m%\033[0m\033[0m ";
             std::string fullPath(cwd.get());
             size_t pos = fullPath.find_last_of('/');
             std::string baseDir = (pos == std::string::npos) ? fullPath : fullPath.substr(pos + 1);
@@ -33,7 +37,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (fgets(istream.get(), MAX_INPUT_LEN, stdin) == nullptr) {
-            return 0;
+            break;
         }
 
         char* newline = strchr(istream.get(), '\n');
@@ -41,7 +45,8 @@ int main(int argc, char* argv[]) {
             *newline = '\0';
         }
 
-        log_command(publicIP, istream.get()); //TODO: logging raw text, maybe change to tokenized?
+        log_command(publicIP, istream.get());
+        commandCount++; // Incrémentez le compteur de commandes
         tokenize2(std::string(istream.get()), head);
 
         if (head == nullptr) {
@@ -52,7 +57,7 @@ int main(int argc, char* argv[]) {
                 if (head != nullptr) {
                     freeList(head);
                 }
-                return 0;
+                break;
             } else if (command == "cd") {
                 std::string dir = pop(head);
                 if (dir.empty()) {
@@ -84,5 +89,13 @@ int main(int argc, char* argv[]) {
             freeList(head);
         }
     }
+
+    // Calculez la durée de la session
+    auto sessionEnd = std::chrono::steady_clock::now();
+    int duration = std::chrono::duration_cast<std::chrono::seconds>(sessionEnd - sessionStart).count();
+
+    // Enregistrez le message de déconnexion
+    log_disconnection(publicIP, duration, commandCount);
+
     return 0;
 }

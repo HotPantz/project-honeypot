@@ -143,11 +143,15 @@ class LogFileEventHandler(FileSystemEventHandler):
                             command = ",".join(parts[2:])
                             formatted = f"[{timestamp_str}] {ip}: {command}"
                             emit_new_live(formatted)
+                        elif "disconnected" in line:
+                            emit_new_live(line.strip())
             except Exception:
                 pass
 
+
 def start_log_watcher():
     logs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../logs')
+    #logs_folder = "/home/hotpantz/Documents/project-honeypot/logs"
     
     # For each existing file, set its offset to the end (ignore historical logs)
     for log_file in glob.glob(os.path.join(logs_folder, "*.txt")):
@@ -172,4 +176,5 @@ def start_log_watcher():
 
 if __name__ == '__main__':
     socketio.start_background_task(start_log_watcher)
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False,  use_reloader=False)
+    
