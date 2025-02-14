@@ -12,6 +12,8 @@ import pymysql
 import pty
 import requests
 import pwd
+import pam
+from passlib.hash import sha512_crypt
 from dotenv import load_dotenv
 
 
@@ -34,6 +36,7 @@ if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME]):
 class Server(paramiko.ServerInterface):
     def __init__(self):
         self.event = threading.Event()
+        self.pam_auth = pam.pam()  # Initialisation de PAM
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -41,8 +44,11 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        return paramiko.AUTH_SUCCESSFUL
-    
+        if self.pam_auth.authenticate(username, password):
+            return paramiko.AUTH_SUCCESSFUL
+        else:
+            return paramiko.AUTH_FAILED
+
     def get_allowed_auths(self, username):
         return 'password'
 
@@ -52,7 +58,8 @@ class Server(paramiko.ServerInterface):
     def check_channel_shell_request(self, channel):
         self.event.set()
         return True
-
+    
+    
 def get_db_connection():
     return pymysql.connect(
         host=DB_HOST,
@@ -119,7 +126,7 @@ def handle_connection(client, addr):
     # DEBUG (local testing)
     ip = addr[0]
     if ip == '127.0.0.1':
-        ip = '88.124.251.104'
+        ip = '81.65.147.189'
     print(f'Authenticated connection from {ip}')
 
     pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP if needed
@@ -135,6 +142,7 @@ def handle_connection(client, addr):
         username = transport.get_username()
         try:
             user_home = pwd.getpwnam(username).pw_dir
+            #user_home = "/home/hotpantz/Documents/project-honeypot/home"
         except KeyError:
             # Fallback: use current effective user's home if lookup fails
             user_home = os.path.expanduser("~")
@@ -230,7 +238,7 @@ def fetch_geolocation(ip):
 def update_ip_geolocation(ip):
     #debug for local tests
     if ip == '127.0.0.1':
-        ip = '88.124.251.104'
+        ip = '81.65.147.189'
     print(ip)
 
     connection = get_db_connection()
