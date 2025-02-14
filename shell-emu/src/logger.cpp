@@ -104,7 +104,7 @@ void log_command(const std::string& userIp, const std::string& command) {
 void log_disconnection(const std::string& userIp, int duration, int commandCount) {
     if(sessionLogFile.is_open()) {
         std::ostringstream oss;
-        oss << "User with IP " << userIp << " disconnected after " << duration << " seconds, executing " << commandCount << " commands.\n";
+        oss << "User " << userIp << " disconnected after " << duration << "s (" << commandCount << " cmds).\n";
         sessionLogFile << oss.str();
         sessionLogFile.flush();
     }
