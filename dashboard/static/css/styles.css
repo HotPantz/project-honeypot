@@ -1,18 +1,20 @@
 #live {
-    background-color: black !important;
-    color: white !important;
-    font-family: monospace !important;
-    padding: 10px !important;
-    height: 300px !important;
-    overflow-y: scroll !important;
-    line-height: 1 !important;
+    background-color: #000 !important;
+    color: #fff !important;
+    font-family: 'Courier New', monospace !important;
+    padding: 15px !important;
+    height: 350px !important;
+    overflow-y: auto !important;
+    line-height: 1.2 !important;
     margin: 0 !important;
+    border: 1px solid #333 !important;
+    border-radius: 4px !important;
 }
 
 #live span.terminal-prompt {
-    color: green !important;
-    margin: 0 !important;
+    color: #0f0 !important;
+    margin-right: 5px !important;
     padding: 0 !important;
     display: inline !important;
-    line-height: 1 !important;
+    line-height: 1.2 !important;
 }

@@ -3,11 +3,12 @@ from flask_socketio import SocketIO
 import pymysql
 import os
 import glob
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 from dotenv import load_dotenv
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import re
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -35,17 +36,48 @@ def init_db():
 
 init_db()
 
-# Route for the dashboard
+# Route for the dashboard. The navbar now only contains Dashboard and Live Shell.
 @app.route('/')
 def index():
     return render_template('index.html')
+
+# New route for Live Shell page that queries the database for distinct IPs.
+@app.route('/live_shell')
+def live_shell():
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            # Get distinct IPs and the latest timestamp for each.
+            sql = """
+                SELECT ip, MAX(timestamp) as last_seen
+                FROM connections
+                GROUP BY ip
+                ORDER BY last_seen DESC;
+            """
+            cursor.execute(sql)
+            shells = cursor.fetchall()
+        # Define a threshold to consider an IP as 'online' (5 minutes).
+        threshold = datetime.now() - timedelta(minutes=5)
+        for shell in shells:
+            # Convert last_seen to a datetime object if necessary.
+            if isinstance(shell['last_seen'], str):
+                shell['last_seen'] = datetime.strptime(shell['last_seen'], '%Y-%m-%d %H:%M:%S')
+            shell['online'] = True if shell['last_seen'] >= threshold else False
+        return render_template('live_shell.html', shells=shells)
+    finally:
+        connection.close()
+
+# Route to access the live shell of a specific IP.
+@app.route('/live_shell/<ip>')
+def shell_detail(ip):
+    return render_template('shell_detail.html', ip=ip)
 
 # /live route now returns an empty list (no history displayed)
 @app.route('/live')
 def get_live():
     return jsonify([])
 
-# fetching connections & geolocation data from the database
+# Fetching connections & geolocation data from the database
 @app.route('/connections')
 def get_connections():
     connection = get_db_connection()
@@ -64,7 +96,7 @@ def get_connections():
     finally:
         connection.close()
 
-# fetching the commands from the database
+# Fetching the commands from the database
 @app.route('/commands')
 def get_commands():
     connection = get_db_connection()
@@ -109,8 +141,9 @@ def connections_over_time():
     finally:
         connection.close()
 
-def emit_new_live(log_line):
-    socketio.emit('new_live', {'log': log_line})
+# Modified emit_new_live function to include the ip associated with the log line.
+def emit_new_live(log_line, ip=""):
+    socketio.emit('new_live', {'log': log_line, 'ip': ip})
 
 # Dictionary to track file offsets per file (only new content is processed)
 file_offsets = {}
@@ -118,42 +151,47 @@ file_offsets = {}
 class LogFileEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if not event.is_directory and event.src_path.endswith('.txt'):
-            # For new log files created after the app starts, start from beginning.
             file_offsets[event.src_path] = 0
 
     def on_modified(self, event):
         if not event.is_directory and event.src_path.endswith('.txt'):
-            # If for any reason the file is not yet tracked, assume new file and start at 0.
             if event.src_path not in file_offsets:
                 file_offsets[event.src_path] = 0
-
             offset = file_offsets.get(event.src_path, 0)
             try:
                 with open(event.src_path, 'r') as f:
                     f.seek(offset)
                     new_lines = f.readlines()
-                    file_offsets[event.src_path] = f.tell()  # update offset to file's end
+                    file_offsets[event.src_path] = f.tell()
                     for line in new_lines:
-                        # Skip comment lines starting with "//"
+                        # Ignore commented lines.
                         if line.strip().startswith("//"):
                             continue
-                        parts = line.strip().split(',')
-                        if len(parts) >= 3:
-                            timestamp_str, ip = parts[0], parts[1]
-                            command = ",".join(parts[2:])
-                            formatted = f"[{timestamp_str}] {ip}: {command}"
-                            emit_new_live(formatted)
-                        elif "disconnected" in line:
-                            emit_new_live(line.strip())
+
+                        # Vérifier si la ligne contient "disconnected" (en ignorant la casse)
+                        if "disconnected" in line.lower():
+                            # Tenter d'extraire l'IP depuis la ligne
+                            match = re.search(r'User ([\d\.]+)', line)
+                            if match:
+                                ip = match.group(1)
+                            else:
+                                # Si non trouvé dans la ligne, extraire l'IP depuis le nom du fichier
+                                file_match = re.search(r'session_([\d\.]+)_', event.src_path)
+                                ip = file_match.group(1) if file_match else ""
+                            print("Message de déconnexion reconnu :", line.strip(), "IP :", ip)
+                            emit_new_live(line.strip(), ip)
+                        else:
+                            parts = line.strip().split(',')
+                            if len(parts) >= 3:
+                                timestamp_str, ip = parts[0], parts[1]
+                                command = ",".join(parts[2:])
+                                formatted = f"[{timestamp_str}] {ip}: {command}"
+                                emit_new_live(formatted, ip)
             except Exception:
                 pass
 
-
 def start_log_watcher():
     logs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../logs')
-    #logs_folder = "/home/hotpantz/Documents/project-honeypot/logs"
-    
-    # For each existing file, set its offset to the end (ignore historical logs)
     for log_file in glob.glob(os.path.join(logs_folder, "*.txt")):
         try:
             with open(log_file, "r") as f:
@@ -173,8 +211,6 @@ def start_log_watcher():
         observer.stop()
     observer.join()
 
-
 if __name__ == '__main__':
     socketio.start_background_task(start_log_watcher)
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False,  use_reloader=False)
-    
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
