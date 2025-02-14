@@ -1,3 +1,4 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -19,19 +20,45 @@
     </style>
   </head>
   <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">Dashboard</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="/">Dashboard</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/live_shell">Live Shell</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    
     <div class="container mt-5">
       <h1 class="text-center mb-4">Honeypot Dashboard</h1>
       <div class="row">
+        <!-- Left Column: Live Shell Output with IP Selector -->
         <div class="col-md-6">
           <div class="card mb-4">
-            <div class="card-header">
-              <h2>Live Shell Output</h2>
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h2 class="mb-0">Live Shell Output</h2>
+              <!-- Select IP to observe -->
+              <select id="ipSelector" class="form-select w-auto">
+                <option value="" disabled selected>Select IP</option>
+              </select>
             </div>
             <div class="card-body">
               <pre id="live"></pre>
             </div>
           </div>
         </div>
+        <!-- Right Column: SSH Connections -->
         <div class="col-md-6">
           <div class="card mb-4">
             <div class="card-header">
@@ -75,15 +102,20 @@
         </div>
       </div>
     </div>
+    
     <script>
       var socket = io();
       var groupBy = 'hour';  // default grouping
+      var selectedIp = "";
 
-      // Update live shell output
+      // Update live shell output based on selected IP
       socket.on('new_live', function(data) {
-        var live = document.getElementById('live');
-        live.innerHTML += '<span class="terminal-prompt">$ </span>' + data.log + '\n';
-        live.scrollTop = live.scrollHeight;
+        // data.log : log content, data.ip : IP address associated with the log
+        if (data.ip === selectedIp) {
+          var live = document.getElementById('live');
+          live.innerHTML += '<span class="terminal-prompt">$ </span>' + data.log + '\n';
+          live.scrollTop = live.scrollHeight;
+        }
       });
 
       // Update connections in real-time
@@ -106,7 +138,7 @@
         });
       });
 
-      // Fetch initial live shell output and connections
+      // Fetch initial live shell output
       fetch('/live')
         .then(response => response.json())
         .then(data => {
@@ -114,30 +146,36 @@
           live.innerHTML = data.map(line => '<span class="terminal-prompt">$ </span>' + line).join('\n');
         });
 
-        fetch('/connections')
+      // Populate IP selector for live view and connections list
+      fetch('/connections')
         .then(response => response.json())
         .then(data => {
-            var connections = document.getElementById('connections');
-            data.forEach(conn => {
-                var li = document.createElement('li');
-                // Build connection info HTML
-                var info = conn.ip;
-                // If geolocation info is present, display flag and location info.
-                if (conn.city || conn.country) {
-                    // If you stored a country code (e.g. "country_code") in ip_geolocations, use it.
-                    var flagHTML = "";
-                if (conn.country_code) {
-                    var flagUrl = "https://flagcdn.com/24x18/" + conn.country_code.toLowerCase() + ".png";
-                    flagHTML = '<img src="' + flagUrl + '" alt="' + conn.country + '" style="margin-right:5px;">';
-                }
-                var location = (conn.city ? conn.city + ", " : "") + (conn.country || "");
-                info = flagHTML + info + " (" + location + ")";
-            }
-        li.innerHTML = info;
-        li.className = 'list-group-item';
-        connections.appendChild(li);
+          var ipSelector = document.getElementById('ipSelector');
+          // Clear any existing options except the placeholder
+          ipSelector.innerHTML = '<option value="" disabled>Select IP</option>';
+          // Use a set for unique IPs
+          var ipSet = new Set();
+          data.forEach(conn => {
+            if (conn.ip) ipSet.add(conn.ip);
+          });
+          ipSet.forEach(ip => {
+            var option = document.createElement('option');
+            option.value = ip;
+            option.textContent = ip;
+            ipSelector.appendChild(option);
+          });
+          // Set default selection to the first IP in the set if available
+          if (ipSet.size > 0) {
+            ipSelector.selectedIndex = 1;
+            selectedIp = ipSelector.value;
+          }
+        });
+
+      // Handle IP selection change
+      document.getElementById('ipSelector').addEventListener('change', function() {
+        selectedIp = this.value;
+        document.getElementById('live').innerHTML = ''; // Clear previous live output on change
       });
-    });
 
       // Chart.js setup for "Connections Over Time"
       var ctx = document.getElementById('connectionsChart').getContext('2d');
@@ -161,7 +199,7 @@
             x: {
               type: 'time',
               time: {
-                unit: groupBy,  // will update based on selected grouping
+                unit: groupBy,
               },
               title: {
                 display: true,
@@ -171,8 +209,8 @@
             y: {
               beginAtZero: true,
               ticks: {
-                precision: 0,   // ensure only whole numbers
-                stepSize: 1     // step by 1 connection
+                precision: 0,
+                stepSize: 1
               },
               title: {
                 display: true,
@@ -188,7 +226,6 @@
         fetch('/connections_over_time?group_by=' + groupBy)
           .then(response => response.json())
           .then(function(data) {
-            console.log("Fetched connections_over_time data:", data);
             // Update chart
             connectionsChart.data.labels = data.map(entry => entry.period);
             connectionsChart.data.datasets[0].data = data.map(entry => entry.count);
