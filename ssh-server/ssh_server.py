@@ -13,7 +13,6 @@ import pty
 import requests
 import pwd
 import pam
-from passlib.hash import sha512_crypt
 from dotenv import load_dotenv
 
 
@@ -36,7 +35,7 @@ if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME]):
 class Server(paramiko.ServerInterface):
     def __init__(self):
         self.event = threading.Event()
-        self.pam_auth = pam.pam()  # Initialisation de PAM
+        self.pam_auth = pam.pam()
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -44,9 +43,12 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        if self.pam_auth.authenticate(username, password):
+        #we use a custom PAM service set up with "pam_service_setup.sh"
+        if self.pam_auth.authenticate(username, password, service='honeypot'): 
+            print(f"PAM authentication successful for user: {username}")
             return paramiko.AUTH_SUCCESSFUL
         else:
+            print(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
             return paramiko.AUTH_FAILED
 
     def get_allowed_auths(self, username):
@@ -126,10 +128,10 @@ def handle_connection(client, addr):
     # DEBUG (local testing)
     ip = addr[0]
     if ip == '127.0.0.1':
-        ip = '81.65.147.189'
+        ip = '88.124.251.104'
     print(f'Authenticated connection from {ip}')
 
-    pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP if needed
+    pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP
     start_time = time.time()
 
     try:
@@ -142,7 +144,6 @@ def handle_connection(client, addr):
         username = transport.get_username()
         try:
             user_home = pwd.getpwnam(username).pw_dir
-            #user_home = "/home/hotpantz/Documents/project-honeypot/home"
         except KeyError:
             # Fallback: use current effective user's home if lookup fails
             user_home = os.path.expanduser("~")
