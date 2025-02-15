@@ -36,6 +36,7 @@ class Server(paramiko.ServerInterface):
     def __init__(self):
         self.event = threading.Event()
         self.pam_auth = pam.pam()
+        self.ip = 'unknown'  # default if not set externally
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -43,8 +44,10 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        #we use a custom PAM service set up with "pam_service_setup.sh"
-        if self.pam_auth.authenticate(username, password, service='honeypot'): 
+        # Log each login attempt.
+        log_login_attempt(self.ip, username, password)
+        # we use a custom PAM service set up with "pam_service_setup.sh"
+        if self.pam_auth.authenticate(username, password, service='honeypot'):
             print(f"PAM authentication successful for user: {username}")
             return paramiko.AUTH_SUCCESSFUL
         else:
@@ -99,6 +102,7 @@ def update_connection_duration(connection_id, duration):
     finally:
         connection.close()
 
+
 def log_command(connection_id, command):
     connection = get_db_connection()
     try:
@@ -109,11 +113,22 @@ def log_command(connection_id, command):
     finally:
         connection.close()
 
-# Starts a shell, logs the connection and its info and logs the commands in the db
+def log_login_attempt(ip, username, password):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = "INSERT INTO login_attempts (ip, username, password) VALUES (%s, %s, %s)"
+            cursor.execute(sql, (ip, username, password))
+        connection.commit()
+    finally:
+        connection.close()
+
+#Starts fshell, logs the connection and its info and logs the commands in the db
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
     transport.add_server_key(HOST_KEY)
     server = Server()
+    server.ip = addr[0]  #passing the connection IP to the server for logging in the db
     try:
         transport.start_server(server=server)
     except paramiko.SSHException:
