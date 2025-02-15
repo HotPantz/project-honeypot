@@ -113,7 +113,7 @@ TODO.md
 - **Python & Dependencies**: Install the required Python packages:
   
   ```bash
-  pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog
+  pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog pam passlib six
   ```
 
 ### Steps
