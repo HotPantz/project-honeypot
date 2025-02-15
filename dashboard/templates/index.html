@@ -1,4 +1,3 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -90,7 +89,7 @@
                 <thead>
                   <tr>
                     <th>Period</th>
-                    <th>Connections</th>
+                    <th>Count</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -110,7 +109,6 @@
 
       // Update live shell output based on selected IP
       socket.on('new_live', function(data) {
-        // data.log : log content, data.ip : IP address associated with the log
         if (data.ip === selectedIp) {
           var live = document.getElementById('live');
           live.innerHTML += '<span class="terminal-prompt">$ </span>' + data.log + '\n';
@@ -118,11 +116,11 @@
         }
       });
 
-      // Update connections in real-time
+      // Update connections in real-time (for SSH Connections list)
       socket.on('new_connection', function(data) {
         var connections = document.getElementById('connections');
         var li = document.createElement('li');
-        li.textContent = data.ip;
+        li.textContent = data.ip + " - " + data.timestamp;
         li.className = 'list-group-item';
         connections.appendChild(li);
       });
@@ -132,7 +130,7 @@
         connections.innerHTML = '';
         data.forEach(function(conn) {
           var li = document.createElement('li');
-          li.textContent = conn.ip;
+          li.textContent = conn.ip + " - " + conn.timestamp;
           li.className = 'list-group-item';
           connections.appendChild(li);
         });
@@ -146,93 +144,117 @@
           live.innerHTML = data.map(line => '<span class="terminal-prompt">$ </span>' + line).join('\n');
         });
 
-      // Populate IP selector for live view and connections list
-      fetch('/connections')
+      // Populate IP selector for live view using dedicated endpoint
+      fetch('/connection_ips')
         .then(response => response.json())
         .then(data => {
           var ipSelector = document.getElementById('ipSelector');
-          // Clear any existing options except the placeholder
           ipSelector.innerHTML = '<option value="" disabled>Select IP</option>';
-          // Use a set for unique IPs
-          var ipSet = new Set();
-          data.forEach(conn => {
-            if (conn.ip) ipSet.add(conn.ip);
-          });
-          ipSet.forEach(ip => {
+          data.forEach(function(ip) {
             var option = document.createElement('option');
             option.value = ip;
             option.textContent = ip;
             ipSelector.appendChild(option);
           });
-          // Set default selection to the first IP in the set if available
-          if (ipSet.size > 0) {
+          if (data.length > 0) {
             ipSelector.selectedIndex = 1;
             selectedIp = ipSelector.value;
           }
-        });
+        })
+        .catch(err => console.error('Error fetching IP selector data:', err));
 
-      // Handle IP selection change
-      document.getElementById('ipSelector').addEventListener('change', function() {
-        selectedIp = this.value;
-        document.getElementById('live').innerHTML = ''; // Clear previous live output on change
+      // Populate SSH Connections list using dedicated endpoint
+      fetch('/connections')
+        .then(response => response.json())
+        .then(data => {
+          var connectionsList = document.getElementById('connections');
+          connectionsList.innerHTML = '';
+          data.forEach(function(conn) {
+            var li = document.createElement('li');
+            li.className = 'list-group-item';
+
+            // using flagcdn.com to display country flags
+            var flagHTML = "";
+            if (conn.country_code) {
+              flagHTML = `<img src="https://flagcdn.com/16x12/${conn.country_code.toLowerCase()}.png" 
+                            alt="${conn.country}" title="${conn.country}" style="margin-left: 5px;">`;
+            }
+
+            li.innerHTML = `<strong>${conn.ip}</strong> - ${conn.timestamp}<br>
+                            ${conn.city ? conn.city : 'N/A'}, ${conn.country ? conn.country : 'N/A'} ${flagHTML}`;
+            connectionsList.appendChild(li);
+          });
+        })
+        .catch(err => console.error('Error fetching connections list:', err));
+
+      // Update connections in real-time (for SSH Connections list)
+      socket.on('new_connection', function(data) {
+        var li = document.createElement('li');
+        li.className = 'list-group-item';
+        var flagHTML = "";
+        if (data.country_code) {
+          flagHTML = `<img src="https://flagcdn.com/16x12/${data.country_code.toLowerCase()}.png" 
+                        alt="${data.country}" title="${data.country}" style="margin-left: 5px;">`;
+        }
+        li.innerHTML = `<strong>${data.ip}</strong> - ${data.timestamp}<br>
+                        ${data.city ? data.city : 'N/A'}, ${data.country ? data.country : 'N/A'} ${flagHTML}`;
+        document.getElementById('connections').appendChild(li);
       });
 
-      // Chart.js setup for "Connections Over Time"
-      var ctx = document.getElementById('connectionsChart').getContext('2d');
-      var connectionsChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Connections',
-            data: [],
-            borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 2,
-            fill: false,
-            tension: 0.1
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,
-          responsive: true,
-          scales: {
-            x: {
-              type: 'time',
-              time: {
-                unit: groupBy,
+        // Chart.js setup for "Connections Over Time"
+        var ctx = document.getElementById('connectionsChart').getContext('2d');
+        var connectionsChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Connections',
+              data: [],
+              borderColor: 'rgba(75, 192, 192, 1)',
+              borderWidth: 2,
+              fill: false,
+              tension: 0.1
+            }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: groupBy,
+                },
+                title: {
+                  display: true,
+                  text: 'Time'
+                }
               },
-              title: {
-                display: true,
-                text: 'Time'
-              }
-            },
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0,
-                stepSize: 1
-              },
-              title: {
-                display: true,
-                text: 'Number of Connections'
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0,
+                  stepSize: 1
+                },
+                title: {
+                  display: true,
+                  text: 'Number of Connections'
+                }
               }
             }
           }
-        }
-      });
+        });
 
       // Update chart and table from /connections_over_time endpoint
       function updateChartAndList() {
         fetch('/connections_over_time?group_by=' + groupBy)
           .then(response => response.json())
           .then(function(data) {
-            // Update chart
             connectionsChart.data.labels = data.map(entry => entry.period);
             connectionsChart.data.datasets[0].data = data.map(entry => entry.count);
             connectionsChart.options.scales.x.time.unit = groupBy;
             connectionsChart.update();
 
-            // Update table list
             let tableBody = document.querySelector('#connectionsOverTimeTable tbody');
             tableBody.innerHTML = '';
             if (data.length === 0) {
@@ -260,7 +282,6 @@
           });
       }
 
-      // Listen for grouping selection changes
       document.getElementById('groupSelector').addEventListener('change', function() {
         groupBy = this.value;
         updateChartAndList();

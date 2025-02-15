@@ -77,14 +77,38 @@ def shell_detail(ip):
 def get_live():
     return jsonify([])
 
-# Fetching connections & geolocation data from the database
+# Fetching the IPs for the selector in the live shell section
+@app.route('/connection_ips')
+def get_connection_ips():
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = "SELECT DISTINCT ip FROM connections ORDER BY timestamp DESC;"
+            cursor.execute(sql)
+            ips = cursor.fetchall()
+        # Return a simple list of IP strings.
+        return jsonify([row['ip'] for row in ips])
+    finally:
+        connection.close()
+
+# Fetching connections & geolocation data from the database for the SSH Connections section
 @app.route('/connections')
 def get_connections():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
             sql = """
-                SELECT c.*, g.country, g.country_code, g.region, g.city, g.lat, g.lon
+                SELECT 
+                    c.id,
+                    c.ip,
+                    c.timestamp,
+                    c.duration,
+                    g.country,
+                    g.country_code,
+                    g.region,
+                    g.city,
+                    g.lat,
+                    g.lon
                 FROM connections c
                 LEFT JOIN ip_geolocations g ON c.ip = g.ip
                 ORDER BY c.timestamp DESC
