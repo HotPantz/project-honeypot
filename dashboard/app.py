@@ -25,11 +25,13 @@ DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 
 def get_db_connection():
-    return pymysql.connect(host=DB_HOST,
-                           user=DB_USER,
-                           password=DB_PASSWORD,
-                           database=DB_NAME,
-                           cursorclass=pymysql.cursors.DictCursor)
+    return pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 def init_db():
     pass
@@ -141,6 +143,34 @@ def connections_over_time():
     finally:
         connection.close()
 
+# New route for Stats
+@app.route('/stats')
+def stats():
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            # Get the 10 most popular commands
+            popular_cmd_query = """
+                SELECT command, COUNT(*) AS count
+                FROM user_commands
+                GROUP BY command
+                ORDER BY count DESC
+                LIMIT 10;
+            """
+            cursor.execute(popular_cmd_query)
+            popular_commands = cursor.fetchall()
+            
+            # Calculate the average session duration
+            avg_duration_query = "SELECT AVG(duration) AS avg_duration FROM connections;"
+            cursor.execute(avg_duration_query)
+            avg_duration = cursor.fetchone()  # This returns a dict with key 'avg_duration'
+            
+        return render_template('stats.html',
+                               popular_commands=popular_commands,
+                               avg_duration=avg_duration['avg_duration'])
+    finally:
+        connection.close()
+
 # Modified emit_new_live function to include the ip associated with the log line.
 def emit_new_live(log_line, ip=""):
     socketio.emit('new_live', {'log': log_line, 'ip': ip})
@@ -168,17 +198,17 @@ class LogFileEventHandler(FileSystemEventHandler):
                         if line.strip().startswith("//"):
                             continue
 
-                        # Vérifier si la ligne contient "disconnected" (en ignorant la casse)
+                        # Check if the line contains "disconnected" (case insensitive)
                         if "disconnected" in line.lower():
-                            # Tenter d'extraire l'IP depuis la ligne
+                            # Attempt to extract the IP from the line
                             match = re.search(r'User ([\d\.]+)', line)
                             if match:
                                 ip = match.group(1)
                             else:
-                                # Si non trouvé dans la ligne, extraire l'IP depuis le nom du fichier
+                                # If not found in the line, extract the IP from the session log filename
                                 file_match = re.search(r'session_([\d\.]+)_', event.src_path)
                                 ip = file_match.group(1) if file_match else ""
-                            print("Message de déconnexion reconnu :", line.strip(), "IP :", ip)
+                            print("Deconnexion detected:", line.strip(), "IP:", ip)
                             emit_new_live(line.strip(), ip)
                         else:
                             parts = line.strip().split(',')
