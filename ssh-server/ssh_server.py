@@ -13,7 +13,6 @@ import pty
 import requests
 import pwd
 import pam
-from passlib.hash import sha512_crypt
 from dotenv import load_dotenv
 
 
@@ -36,7 +35,8 @@ if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME]):
 class Server(paramiko.ServerInterface):
     def __init__(self):
         self.event = threading.Event()
-        self.pam_auth = pam.pam()  # Initialisation de PAM
+        self.pam_auth = pam.pam()
+        self.ip = 'unknown'  # default if not set externally
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -44,9 +44,14 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        if self.pam_auth.authenticate(username, password):
+        # Log each login attempt.
+        log_login_attempt(self.ip, username, password)
+        # we use a custom PAM service set up with "pam_service_setup.sh"
+        if self.pam_auth.authenticate(username, password, service='honeypot'):
+            print(f"PAM authentication successful for user: {username}")
             return paramiko.AUTH_SUCCESSFUL
         else:
+            print(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
             return paramiko.AUTH_FAILED
 
     def get_allowed_auths(self, username):
@@ -97,6 +102,7 @@ def update_connection_duration(connection_id, duration):
     finally:
         connection.close()
 
+
 def log_command(connection_id, command):
     connection = get_db_connection()
     try:
@@ -107,11 +113,22 @@ def log_command(connection_id, command):
     finally:
         connection.close()
 
-# Starts a shell, logs the connection and its info and logs the commands in the db
+def log_login_attempt(ip, username, password):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = "INSERT INTO login_attempts (ip, username, password) VALUES (%s, %s, %s)"
+            cursor.execute(sql, (ip, username, password))
+        connection.commit()
+    finally:
+        connection.close()
+
+#Starts fshell, logs the connection and its info and logs the commands in the db
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
     transport.add_server_key(HOST_KEY)
     server = Server()
+    server.ip = addr[0]  #passing the connection IP to the server for logging in the db
     try:
         transport.start_server(server=server)
     except paramiko.SSHException:
@@ -126,10 +143,10 @@ def handle_connection(client, addr):
     # DEBUG (local testing)
     ip = addr[0]
     if ip == '127.0.0.1':
-        ip = '81.65.147.189'
+        ip = '88.124.251.104'
     print(f'Authenticated connection from {ip}')
 
-    pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP if needed
+    pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP
     start_time = time.time()
 
     try:
@@ -142,7 +159,6 @@ def handle_connection(client, addr):
         username = transport.get_username()
         try:
             user_home = pwd.getpwnam(username).pw_dir
-            #user_home = "/home/hotpantz/Documents/project-honeypot/home"
         except KeyError:
             # Fallback: use current effective user's home if lookup fails
             user_home = os.path.expanduser("~")
