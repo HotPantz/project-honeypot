@@ -10,13 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@2/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
-    <style>
-      /* Increase canvas size for a broader graph */
-      #connectionsChart {
-        width: 100% !important;
-        height: 500px !important;
-      }
-    </style>
   </head>
   <body>
     <!-- Navigation Bar -->
@@ -45,15 +38,11 @@
     <div class="container mt-5">
       <h1 class="text-center mb-4">Honeypot Dashboard</h1>
       <div class="row">
-        <!-- Left Column: Live Shell Output with IP Selector -->
+        <!-- Left Column: Live Shell Output (no IP selector) -->
         <div class="col-md-6">
           <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
               <h2 class="mb-0">Live Shell Output</h2>
-              <!-- Select IP to observe -->
-              <select id="ipSelector" class="form-select w-auto">
-                <option value="" disabled selected>Select IP</option>
-              </select>
             </div>
             <div class="card-body">
               <pre id="live"></pre>
@@ -85,7 +74,9 @@
               </select>
             </div>
             <div class="card-body">
-              <canvas id="connectionsChart"></canvas>
+              <div class="chart-container">
+                <canvas id="connectionsChart"></canvas>
+              </div>
               <hr>
               <h4 class="mt-3">Connections List</h4>
               <table class="table table-striped" id="connectionsOverTimeTable">
@@ -108,89 +99,15 @@
     <script>
       var socket = io();
       var groupBy = 'hour';  // default grouping
-      var selectedIp = "";
 
-      // Update live shell output based on selected IP
+      // Update live shell output with all incoming log lines (no filtering by IP)
       socket.on('new_live', function(data) {
-        if (data.ip === selectedIp) {
-          var live = document.getElementById('live');
-          live.innerHTML += '<span class="terminal-prompt">$ </span>' + data.log + '\n';
-          live.scrollTop = live.scrollHeight;
-        }
+        var live = document.getElementById('live');
+        live.innerHTML += '<span class="terminal-prompt">$ </span>' + data.log + '\n';
+        live.scrollTop = live.scrollHeight;
       });
 
-      // Update connections in real-time (for SSH Connections list)
-      socket.on('new_connection', function(data) {
-        var connections = document.getElementById('connections');
-        var li = document.createElement('li');
-        li.textContent = data.ip + " - " + data.timestamp;
-        li.className = 'list-group-item';
-        connections.appendChild(li);
-      });
-
-      socket.on('update_connections', function(data) {
-        var connections = document.getElementById('connections');
-        connections.innerHTML = '';
-        data.forEach(function(conn) {
-          var li = document.createElement('li');
-          li.textContent = conn.ip + " - " + conn.timestamp;
-          li.className = 'list-group-item';
-          connections.appendChild(li);
-        });
-      });
-
-      // Fetch initial live shell output
-      fetch('/live')
-        .then(response => response.json())
-        .then(data => {
-          var live = document.getElementById('live');
-          live.innerHTML = data.map(line => '<span class="terminal-prompt">$ </span>' + line).join('\n');
-        });
-
-      // Populate IP selector for live view using dedicated endpoint
-      fetch('/connection_ips')
-        .then(response => response.json())
-        .then(data => {
-          var ipSelector = document.getElementById('ipSelector');
-          ipSelector.innerHTML = '<option value="" disabled>Select IP</option>';
-          data.forEach(function(ip) {
-            var option = document.createElement('option');
-            option.value = ip;
-            option.textContent = ip;
-            ipSelector.appendChild(option);
-          });
-          if (data.length > 0) {
-            ipSelector.selectedIndex = 1;
-            selectedIp = ipSelector.value;
-          }
-        })
-        .catch(err => console.error('Error fetching IP selector data:', err));
-
-      // Populate SSH Connections list using dedicated endpoint
-      fetch('/connections')
-        .then(response => response.json())
-        .then(data => {
-          var connectionsList = document.getElementById('connections');
-          connectionsList.innerHTML = '';
-          data.forEach(function(conn) {
-            var li = document.createElement('li');
-            li.className = 'list-group-item';
-
-            // using flagcdn.com to display country flags
-            var flagHTML = "";
-            if (conn.country_code) {
-              flagHTML = `<img src="https://flagcdn.com/16x12/${conn.country_code.toLowerCase()}.png" 
-                            alt="${conn.country}" title="${conn.country}" style="margin-left: 5px;">`;
-            }
-
-            li.innerHTML = `<strong>${conn.ip}</strong> - ${conn.timestamp}<br>
-                            ${conn.city ? conn.city : 'N/A'}, ${conn.country ? conn.country : 'N/A'} ${flagHTML}`;
-            connectionsList.appendChild(li);
-          });
-        })
-        .catch(err => console.error('Error fetching connections list:', err));
-
-      // Update connections in real-time (for SSH Connections list)
+      // Update SSH Connections list in real-time
       socket.on('new_connection', function(data) {
         var li = document.createElement('li');
         li.className = 'list-group-item';
@@ -204,9 +121,71 @@
         document.getElementById('connections').appendChild(li);
       });
 
-        // Chart.js setup for "Connections Over Time"
-        var ctx = document.getElementById('connectionsChart').getContext('2d');
-        var connectionsChart = new Chart(ctx, {
+      socket.on('update_connections', function(data) {
+        var connections = document.getElementById('connections');
+        connections.innerHTML = '';
+        data.forEach(function(conn) {
+          var li = document.createElement('li');
+          li.className = 'list-group-item';
+          var flagHTML = "";
+          if (conn.country_code) {
+            flagHTML = `<img src="https://flagcdn.com/16x12/${conn.country_code.toLowerCase()}.png" 
+                          alt="${conn.country}" title="${conn.country}" style="margin-left: 5px;">`;
+          }
+          li.innerHTML = `<strong>${conn.ip}</strong> - ${conn.timestamp}<br>
+                          ${conn.city ? conn.city : 'N/A'}, ${conn.country ? conn.country : 'N/A'} ${flagHTML}`;
+          connections.appendChild(li);
+        });
+      });
+
+      // Fetch initial live shell output (all logs)
+      fetch('/live')
+        .then(response => response.json())
+        .then(data => {
+          var live = document.getElementById('live');
+          live.innerHTML = data.map(line => '<span class="terminal-prompt">$ </span>' + line).join('\n');
+        });
+
+      // Populate SSH Connections list using dedicated endpoint
+      fetch('/connections')
+        .then(response => response.json())
+        .then(data => {
+          var connectionsList = document.getElementById('connections');
+          connectionsList.innerHTML = '';
+          data.forEach(function(conn) {
+            var li = document.createElement('li');
+            li.className = 'list-group-item';
+            var flagHTML = "";
+            if (conn.country_code) {
+              flagHTML = `<img src="https://flagcdn.com/16x12/${conn.country_code.toLowerCase()}.png" 
+                            alt="${conn.country}" title="${conn.country}" style="margin-left: 5px;">`;
+            }
+            li.innerHTML = `<strong>${conn.ip}</strong> - ${conn.timestamp}<br>
+                            ${conn.city ? conn.city : 'N/A'}, ${conn.country ? conn.country : 'N/A'} ${flagHTML}`;
+            connectionsList.appendChild(li);
+          });
+        })
+        .catch(err => console.error('Error fetching connections list:', err));
+
+      // Chart.js setup for "Connections Over Time"
+      var ctx = document.getElementById('connectionsChart').getContext('2d');
+      var connectionsChart = createChart(groupBy);
+
+      function createChart(group) {
+        var xOptions = group === 'hour' ? {
+          type: 'category',
+          ticks: { autoSkip: false },
+          title: { display: true, text: 'Hour' }
+        } : {
+          type: 'time',
+          time: {
+            unit: 'day',
+            parser: 'yyyy-MM-dd',
+            displayFormats: { day: 'MMM d' }
+          },
+          title: { display: true, text: 'Date' }
+        };
+        return new Chart(ctx, {
           type: 'bar',
           data: {
             labels: [],
@@ -223,16 +202,7 @@
             maintainAspectRatio: false,
             responsive: true,
             scales: {
-              x: {
-                type: 'time',
-                time: {
-                  unit: groupBy,
-                },
-                title: {
-                  display: true,
-                  text: 'Time'
-                }
-              },
+              x: xOptions,
               y: {
                 beginAtZero: true,
                 ticks: {
@@ -247,17 +217,36 @@
             }
           }
         });
+      }
 
-      // Update chart and table from /connections_over_time endpoint
       function updateChartAndList() {
         fetch('/connections_over_time?group_by=' + groupBy)
           .then(response => response.json())
           .then(function(data) {
-            connectionsChart.data.labels = data.map(entry => entry.period);
-            connectionsChart.data.datasets[0].data = data.map(entry => entry.count);
-            connectionsChart.options.scales.x.time.unit = groupBy;
+            if (groupBy === 'hour') {
+              var defaultLabels = [];
+              for (var i = 0; i < 24; i++) {
+                defaultLabels.push(i.toString().padStart(2, '0') + ":00");
+              }
+              var counts = defaultLabels.map(function(label) {
+                var hour = label.substring(0, 2);
+                var entry = data.find(e => e.period === hour);
+                return entry ? entry.count : 0;
+              });
+              connectionsChart.data.labels = defaultLabels;
+              connectionsChart.data.datasets[0].data = counts;
+            } else {
+              // For day grouping, supply data as objects with x (date) and y (count)
+              connectionsChart.data.datasets[0].data = data.map(entry => ({
+                x: luxon.DateTime.fromFormat(entry.period, 'yyyy-MM-dd').toJSDate(),
+                y: entry.count
+              }));
+              // Clear labels when using time scale with x-y objects
+              connectionsChart.data.labels = [];
+            }
             connectionsChart.update();
 
+            // Update connections table
             let tableBody = document.querySelector('#connectionsOverTimeTable tbody');
             tableBody.innerHTML = '';
             if (data.length === 0) {
@@ -287,6 +276,9 @@
 
       document.getElementById('groupSelector').addEventListener('change', function() {
         groupBy = this.value;
+        // Destroy the old chart and reinitialize with new x-axis settings
+        connectionsChart.destroy();
+        connectionsChart = createChart(groupBy);
         updateChartAndList();
       });
 

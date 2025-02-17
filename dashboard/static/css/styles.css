@@ -18,3 +18,15 @@
     display: inline !important;
     line-height: 1.2 !important;
 }
+
+#connections {
+    max-height: 342px; /* Adjust the height as needed */
+    overflow-y: auto;
+}
+
+.chart-container {
+    position: relative;
+    margin: auto;
+    height: 500px; /* Adjust height as needed */
+    width: 100%;
+}

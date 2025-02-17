@@ -200,14 +200,14 @@ def connections_over_time():
         with connection.cursor() as cursor:
             if group_by == 'hour':
                 sql = """
-                    SELECT DATE_FORMAT(timestamp, '%Y-%m-%d') as period, COUNT(*) as count
+                    SELECT DATE_FORMAT(timestamp, '%H') as period, COUNT(*) as count
                     FROM connections
                     GROUP BY period
                     ORDER BY period ASC;
                 """
-            else:
+            else: #default is day
                 sql = """
-                    SELECT DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as period, COUNT(*) as count
+                    SELECT DATE_FORMAT(timestamp, '%Y-%m-%d') as period, COUNT(*) as count
                     FROM connections
                     GROUP BY period
                     ORDER BY period ASC;
