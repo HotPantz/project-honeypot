@@ -12,9 +12,11 @@
 - [x] Only allow the selection of ACTIVE connections in the live output
 - [x] Display various stats on the dashboard like most popular commands, average session duration etc
 - [x] Create a dashboard for log access and statistics using Flask
+- [ ] FIX cd in the shell so that "cd <directory>" works without "./<directory>"
+- [ ] Create a list of commands that are allowed to be executed by the user (list loaded in main.cpp)
 - [ ] Simulate restricted access to certain folders and files
 - [ ] Populate ps output with decoy processes
-- [ ] Simulate common shell commands (e.g., `sudo`) to make the user think they are using a real shell
+- [x] Simulate common shell commands (e.g., `sudo`) to make the user think they are using a real shell
 - [ ] Implement deceptive command responses for common system commands
 - [ ] Create a virtual filesystem structure for fake filesystem navigation
 - [ ] Don't allow user to exit the fake file system
@@ -27,5 +29,5 @@
 - [x] Add visual analytics to the dashboard 
 - [x] Display a real-time command feed on the dashboard 
 
-TOTAL COMPLETED : 14 / 25
+TOTAL COMPLETED : 15 / 24
 
