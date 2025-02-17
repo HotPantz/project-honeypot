@@ -15,14 +15,14 @@ import pwd
 import pam
 from dotenv import load_dotenv
 
-
-#for soft shutdown with CTRL+C
+# For soft shutdown with CTRL+C
 shutdown_requested = False
 
+# Load host key and environment variable
 HOST_KEY = paramiko.RSAKey(filename='key/serv_rsa.key')
 CONNECTIONS_FILE = 'connections.json'
 
-#loads .env
+# Load .env file
 load_dotenv()
 DB_HOST = os.getenv('DB_HOST')
 DB_USER = os.getenv('DB_USER')
@@ -63,8 +63,7 @@ class Server(paramiko.ServerInterface):
     def check_channel_shell_request(self, channel):
         self.event.set()
         return True
-    
-    
+
 def get_db_connection():
     return pymysql.connect(
         host=DB_HOST,
@@ -78,8 +77,8 @@ def log_connection(ip, pseudo_id, duration):
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            sql = "INSERT INTO connections (ip, pseudo_id, duration) VALUES (%s, %s, %s)"
-            cursor.execute(sql, (ip, pseudo_id, duration))
+            sql = "INSERT INTO connections (ip, pseudo_id, duration, status) VALUES (%s, %s, %s, %s)"
+            cursor.execute(sql, (ip, pseudo_id, duration, True))  # Set status to True (online)
             connection.commit()
             return cursor.lastrowid  # Return the ID of inserted connection
     except pymysql.Error as e:
@@ -88,7 +87,19 @@ def log_connection(ip, pseudo_id, duration):
     finally:
         connection.close()
 
-#updates the duration of a connection that was inserted to the db by log_connection
+def update_connection_status(connection_id, status):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = "UPDATE connections SET status = %s WHERE id = %s"
+            cursor.execute(sql, (status, connection_id))
+        connection.commit()
+    except pymysql.Error as e:
+        logging.error(f"Database error: {e}")
+        raise
+    finally:
+        connection.close()
+
 def update_connection_duration(connection_id, duration):
     connection = get_db_connection()
     try:
@@ -101,7 +112,6 @@ def update_connection_duration(connection_id, duration):
         raise
     finally:
         connection.close()
-
 
 def log_command(connection_id, command):
     connection = get_db_connection()
@@ -123,12 +133,12 @@ def log_login_attempt(ip, username, password):
     finally:
         connection.close()
 
-#Starts fshell, logs the connection and its info and logs the commands in the db
+# Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
     transport.add_server_key(HOST_KEY)
     server = Server()
-    server.ip = addr[0]  #passing the connection IP to the server for logging in the db
+    server.ip = addr[0]  # pass connection IP for logging
     try:
         transport.start_server(server=server)
     except paramiko.SSHException:
@@ -140,35 +150,28 @@ def handle_connection(client, addr):
         print('No channel.')
         return
 
-    # DEBUG (local testing)
     ip = addr[0]
-    if ip == '127.0.0.1':
-        ip = '88.124.251.104'
+    if ip == '127.0.0.1':  # For debugging/local testing.
+        ip = '81.65.147.189'
     print(f'Authenticated connection from {ip}')
-
-    pseudo_id = str(time.time())  # TODO: re-use the same ID for the same IP
+    
+    pseudo_id = str(time.time())  # TODO: re-use same ID for the same IP if desired.
     start_time = time.time()
-
+    
     try:
-        # Create a new connection log entry and capture its id.
         connection_id = log_connection(ip, pseudo_id, 0)
         print(f"New connection logged with ID: {connection_id}")
-        threading.Thread(target=update_ip_geolocation, args=(ip,)).start()  # run in a thread because it can be slow
+        threading.Thread(target=update_ip_geolocation, args=(ip,)).start()
 
-        # Obtain the authenticated user's username and home directory from passwd.
         username = transport.get_username()
         try:
             user_home = pwd.getpwnam(username).pw_dir
         except KeyError:
-            # Fallback: use current effective user's home if lookup fails
             user_home = os.path.expanduser("~")
         print(f"User '{username}' home directory: {user_home}")
-
-        shell_path = os.path.abspath('../shell-emu/bin/fshell')  # Determine absolute path to the custom shell
+        
+        shell_path = os.path.abspath('../shell-emu/bin/fshell')
         master_fd, slave_fd = pty.openpty()
-
-        # Spawn the custom shell with its stdio attached to the slave end of the pty,
-        # and set cwd to the authenticated user's home directory.
         shell_process = subprocess.Popen(
             [shell_path],
             stdin=slave_fd,
@@ -177,11 +180,10 @@ def handle_connection(client, addr):
             cwd=user_home,
             close_fds=True
         )
-        os.close(slave_fd)  # Only master_fd is needed
+        os.close(slave_fd)
 
         cmd_buffer = b""
 
-        # Forward I/O between SSH channel and shell pty master
         while not shutdown_requested:
             rlist, _, _ = select.select([master_fd, chan], [], [], 0.1)
 
@@ -200,18 +202,14 @@ def handle_connection(client, addr):
                     data = chan.recv(1024)
                     if data:
                         os.write(master_fd, data)
-                        # Accumulate data for command logging
                         cmd_buffer += data
 
-                        # Check if we have received a newline
                         if cmd_buffer.endswith(b'\n') or cmd_buffer.endswith(b'\r'):
-                            # Decode the buffer and split into lines
                             lines = cmd_buffer.decode('utf-8', errors='ignore').splitlines()
                             for line in lines:
                                 line = line.strip()
                                 if line:
                                     log_command(connection_id, line)
-                            # Reset the buffer
                             cmd_buffer = b""
                     else:
                         break
@@ -229,9 +227,9 @@ def handle_connection(client, addr):
         duration = int(time.time() - start_time)
         print(f'Connection from {addr[0]} closed after {duration} seconds')
         update_connection_duration(connection_id, duration)
+        update_connection_status(connection_id, False)  # Set status to False (offline)
         chan.close()
         transport.close()
-
 
 def fetch_geolocation(ip):
     url = f"http://ip-api.com/json/{ip}"
@@ -252,7 +250,6 @@ def fetch_geolocation(ip):
     return None
 
 def update_ip_geolocation(ip):
-    #debug for local tests
     if ip == '127.0.0.1':
         ip = '81.65.147.189'
     print(ip)
@@ -295,7 +292,7 @@ def start_ssh_server():
     
     while not shutdown_requested:
         try:
-            server_socket.settimeout(1.25)  # check shutdown flag  every 1,25s
+            server_socket.settimeout(1.25)  # check shutdown flag every 1.25s
             client, addr = server_socket.accept()
             print(f'Connection from {addr}')
             threading.Thread(target=handle_connection, args=(client, addr)).start()

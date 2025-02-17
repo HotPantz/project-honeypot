@@ -61,7 +61,7 @@
           {% endif %}
           {{ details.city }} - {{ details.country }}
         </span>
-        <span class="badge {{ 'bg-success' if details.online else 'bg-danger' }}">
+        <span id="status-badge" class="badge {{ 'bg-success' if details.online else 'bg-danger' }}">
           {{ 'Online' if details.online else 'Offline' }}
         </span>
       </div>
@@ -124,6 +124,23 @@
       socket.on('new_session', function(data) {
         if (data.ip === "{{ ip }}") {
           loadSessionContent();
+        }
+      });
+
+      // Événement signalant la mise à jour de l'état en ligne :
+      // Mettre à jour le badge de statut pour cette IP.
+      socket.on('status_update', function(data) {
+        if (data.ip === "{{ ip }}") {
+          const statusBadge = document.getElementById('status-badge');
+          if (data.online) {
+            statusBadge.classList.remove('bg-danger');
+            statusBadge.classList.add('bg-success');
+            statusBadge.textContent = 'Online';
+          } else {
+            statusBadge.classList.remove('bg-success');
+            statusBadge.classList.add('bg-danger');
+            statusBadge.textContent = 'Offline';
+          }
         }
       });
     </script>

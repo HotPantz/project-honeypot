@@ -50,7 +50,7 @@
         </thead>
         <tbody>
           {% for shell in shells %}
-          <tr>
+          <tr data-ip="{{ shell.ip }}">
             <td>{{ shell.ip }}</td>
             <td>
               {% if shell.country_code %}
@@ -59,11 +59,9 @@
               {{ shell.city }} - {{ shell.country }}
             </td>
             <td>
-              {% if shell.online %}
-                <span class="badge bg-success">Online</span>
-              {% else %}
-                <span class="badge bg-danger">Offline</span>
-              {% endif %}
+              <span class="badge {{ 'bg-success' if shell.online else 'bg-danger' }}">
+                {{ 'Online' if shell.online else 'Offline' }}
+              </span>
             </td>
             <td>
               <a href="/live_shell/{{ shell.ip }}" class="btn btn-sm btn-primary action-btn">Access Live Shell</a>
@@ -74,5 +72,29 @@
         </tbody>
       </table>
     </div>
+
+    <script>
+      // Initialisation de Socket.IO
+      const socket = io();
+
+      // Réception des mises à jour de statut en temps réel
+      socket.on('status_update', function(data) {
+        const shellRow = document.querySelector(`tr[data-ip="${data.ip}"]`);
+        if (shellRow) {
+          const statusBadge = shellRow.querySelector('.badge');
+          if (data.online) {
+            statusBadge.classList.remove('bg-danger');
+            statusBadge.classList.add('bg-success');
+            statusBadge.textContent = 'Online';
+          } else {
+            statusBadge.classList.remove('bg-success');
+            statusBadge.classList.add('bg-danger');
+            statusBadge.textContent = 'Offline';
+          }
+        }
+      });
+
+      // Autres événements Socket.IO...
+    </script>
   </body>
 </html>
