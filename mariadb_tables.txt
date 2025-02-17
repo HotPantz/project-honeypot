@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS connections (
     ip TEXT NOT NULL,
     pseudo_id TEXT NOT NULL,
     duration INTEGER,
+    status BOOLEAN NOT NULL DEFAULT 0,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

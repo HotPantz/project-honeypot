@@ -53,7 +53,8 @@ def live_shell():
                     MAX(c.timestamp) as last_seen,
                     g.country,
                     g.country_code,
-                    g.city
+                    g.city,
+                    (SELECT status FROM connections WHERE ip = c.ip ORDER BY timestamp DESC LIMIT 1) as status
                 FROM connections c
                 LEFT JOIN ip_geolocations g ON c.ip = g.ip
                 GROUP BY c.ip, g.country, g.country_code, g.city
@@ -62,11 +63,10 @@ def live_shell():
             cursor.execute(sql)
             shells = cursor.fetchall()
         
-        threshold = datetime.now() - timedelta(minutes=1)
         for shell in shells:
             if isinstance(shell['last_seen'], str):
                 shell['last_seen'] = datetime.strptime(shell['last_seen'], '%Y-%m-%d %H:%M:%S')
-            shell['online'] = True if shell['last_seen'] >= threshold else False
+            shell['online'] = shell['status']  # Utiliser le statut de la base de données
             
             # Compter les commandes dans le dernier fichier de session
             logs_dir = os.path.join(os.getcwd(), "../logs")
@@ -98,7 +98,8 @@ def shell_detail(ip):
                     MAX(c.timestamp) as last_seen,
                     g.country,
                     g.country_code,
-                    g.city
+                    g.city,
+                    (SELECT status FROM connections WHERE ip = c.ip ORDER BY timestamp DESC LIMIT 1) as status
                 FROM connections c
                 LEFT JOIN ip_geolocations g ON c.ip = g.ip
                 WHERE c.ip = %s
@@ -107,10 +108,9 @@ def shell_detail(ip):
             cursor.execute(sql, (ip,))
             result = cursor.fetchone()
         if result:
-            threshold = datetime.now() - timedelta(minutes=5)
             if isinstance(result['last_seen'], str):
                 result['last_seen'] = datetime.strptime(result['last_seen'], '%Y-%m-%d %H:%M:%S')
-            result['online'] = True if result['last_seen'] >= threshold else False
+            result['online'] = result['status']  # Utiliser le statut de la base de données
         return render_template('shell_detail.html', ip=ip, details=result)
     finally:
         connection.close()
