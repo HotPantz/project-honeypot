@@ -11,7 +11,7 @@ import subprocess
 import pymysql
 import pty
 import requests
-import pwd
+import pwd, grp
 import pam
 from dotenv import load_dotenv
 
@@ -133,6 +133,24 @@ def log_login_attempt(ip, username, password):
     finally:
         connection.close()
 
+def drop_privileges(uid_name='honeypot_user', gid_name='honeypot_user'):
+    """Drop root privileges by switching to the specified non‑privileged user."""
+    if os.getuid() != 0:
+        return
+    try:
+        running_uid = pwd.getpwnam(uid_name).pw_uid
+        running_gid = grp.getgrnam(gid_name).gr_gid
+    except KeyError as e:
+        raise Exception(f"User or group {uid_name} not found: {e}")
+    # Drop group privileges.
+    os.setgid(running_gid)
+    # Drop supplementary groups.
+    os.setgroups([])
+    # Drop user privileges.
+    os.setuid(running_uid)
+    os.umask(0o077)
+    print(f"Dropped privileges to user: {uid_name}")
+
 # Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
@@ -151,59 +169,68 @@ def handle_connection(client, addr):
         return
 
     ip = addr[0]
-    if ip == '127.0.0.1':  # For debugging/local testing.
-        ip = '81.65.147.189'
     print(f'Authenticated connection from {ip}')
-    
-    pseudo_id = str(time.time())  # TODO: re-use same ID for the same IP if desired.
+
+    #emitting connection status updates to the frontend
+    try:
+        #TODO: make it so that the adress of the page is loaded from the .env file
+        requests.post("http://localhost:5000/notify_status", json={'ip': ip, 'online': True})
+    except Exception as e:
+        print("Error notifying status update:", e)
+
+    pseudo_id = str(time.time())
     start_time = time.time()
     
     try:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
         connection_id = log_connection(ip, pseudo_id, 0)
         print(f"New connection logged with ID: {connection_id}")
         threading.Thread(target=update_ip_geolocation, args=(ip,)).start()
 
-        username = transport.get_username()
         try:
-            user_home = pwd.getpwnam(username).pw_dir
+            user_home = pwd.getpwnam(transport.get_username()).pw_dir
         except KeyError:
             user_home = os.path.expanduser("~")
-        print(f"User '{username}' home directory: {user_home}")
-        
-        shell_path = os.path.abspath('../shell-emu/bin/fshell')
+        print(f"User home directory: {user_home}")
+
+        shell_path = os.path.abspath('/usr/bin/fshell')
         master_fd, slave_fd = pty.openpty()
+
+        #Passing the IP addr as a env. var because fshell is executed on the server 
+        #and if we'd be getting our own public IP addr if we tried to fetch it from the shell
+        env = os.environ.copy()
+        env["SSH_CLIENT_IP"] = ip
+
         shell_process = subprocess.Popen(
             [shell_path],
             stdin=slave_fd,
             stdout=slave_fd,
             stderr=slave_fd,
             cwd=user_home,
+            env=env,
             close_fds=True
         )
         os.close(slave_fd)
 
         cmd_buffer = b""
-
         while not shutdown_requested:
             rlist, _, _ = select.select([master_fd, chan], [], [], 0.1)
-
             if master_fd in rlist:
                 try:
                     output = os.read(master_fd, 1024)
                     if output:
                         chan.send(output)
                     else:
-                        break  # Shell process may have finished
+                        break
                 except OSError:
                     break
-
             if chan in rlist:
                 try:
                     data = chan.recv(1024)
                     if data:
                         os.write(master_fd, data)
                         cmd_buffer += data
-
                         if cmd_buffer.endswith(b'\n') or cmd_buffer.endswith(b'\r'):
                             lines = cmd_buffer.decode('utf-8', errors='ignore').splitlines()
                             for line in lines:
@@ -215,10 +242,8 @@ def handle_connection(client, addr):
                         break
                 except Exception:
                     break
-
             if shell_process.poll() is not None:
                 break
-
     except Exception as e:
         print(f'Connection error: {e}')
     finally:
@@ -227,9 +252,13 @@ def handle_connection(client, addr):
         duration = int(time.time() - start_time)
         print(f'Connection from {addr[0]} closed after {duration} seconds')
         update_connection_duration(connection_id, duration)
-        update_connection_status(connection_id, False)  # Set status to False (offline)
+        update_connection_status(connection_id, False)  # offline
         chan.close()
         transport.close()
+        try:
+            requests.post("http://localhost:5000/notify_status", json={'ip': ip, 'online': False})
+        except Exception as e:
+            print("Error notifying status update:", e)
 
 def fetch_geolocation(ip):
     url = f"http://ip-api.com/json/{ip}"
@@ -250,10 +279,6 @@ def fetch_geolocation(ip):
     return None
 
 def update_ip_geolocation(ip):
-    if ip == '127.0.0.1':
-        ip = '81.65.147.189'
-    print(ip)
-
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
@@ -286,16 +311,31 @@ def start_ssh_server():
     
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # For example, bind to port 2222 if you need a privileged port solution before forking
     server_socket.bind(('0.0.0.0', 2222))
     server_socket.listen(100)
     print('Server started')
     
     while not shutdown_requested:
         try:
-            server_socket.settimeout(1.25)  # check shutdown flag every 1.25s
+            server_socket.settimeout(1.25)  # check shutdown flag periodically
             client, addr = server_socket.accept()
             print(f'Connection from {addr}')
-            threading.Thread(target=handle_connection, args=(client, addr)).start()
+            pid = os.fork()
+            if pid == 0:
+                # In child process.
+                server_socket.close()  # Child doesn't need the main server socket.
+                try:
+                    drop_privileges(uid_name='honeypot_user', gid_name='honeypot_user')
+                    handle_connection(client, addr)
+                finally:
+                    client.close()
+                    os._exit(0)
+            else:
+                # In parent process.
+                client.close()  # Close reference in parent.
+                # Optionally, reap zombie children.
+                os.waitpid(-1, os.WNOHANG)
         except socket.timeout:
             continue
         except Exception as e:

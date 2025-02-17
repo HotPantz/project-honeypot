@@ -8,22 +8,29 @@
 #include <memory>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <cstdlib>
 #include <chrono>
+#include <cstring>
 
-// Ajoutez ces variables globales
+
 auto sessionStart = std::chrono::steady_clock::now();
 int commandCount = 0;
 
 int main(int argc, char* argv[]) {
     std::unique_ptr<char[]> istream(new char[MAX_INPUT_LEN]);
     std::unique_ptr<char[]> cwd(new char[MAX_DIR_LEN]);
-    std::string publicIP = "";
 
-    publicIP = get_public_ip();
-    if(publicIP.empty()) {
-        publicIP = "unknown";
+    const char* ip_env = std::getenv("SSH_CLIENT_IP");
+    std::string publicIP;
+    if(ip_env != nullptr && std::strlen(ip_env) > 0) {
+        publicIP = std::string(ip_env);
+        std::cout << "[DEBUG] SSH_CLIENT_IP: " << publicIP << std::endl;
+        initialize_session_log(publicIP);
+    } else {
+        std::cout << "[DEBUG] SSH_CLIENT_IP not set, using default." << std::endl;
+        publicIP = "9.9.9.9";
+        initialize_session_log(publicIP);
     }
-    initialize_session_log(publicIP);
 
     while (true) {
         if (getcwd(cwd.get(), MAX_DIR_LEN) == nullptr) {
@@ -90,11 +97,11 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Calculez la durée de la session
+    //session duration
     auto sessionEnd = std::chrono::steady_clock::now();
     int duration = std::chrono::duration_cast<std::chrono::seconds>(sessionEnd - sessionStart).count();
 
-    // Enregistrez le message de déconnexion
+    //disconnect message push to the log
     log_disconnection(publicIP, duration, commandCount);
 
     return 0;

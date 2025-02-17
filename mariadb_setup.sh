@@ -17,7 +17,7 @@ set -e
 
 DB_NAME="honeypot_db"
 DB_USER="honeypot_dbuser"
-DB_PASSWORD="<CHANGE_ME>"
+DB_PASSWORD="test#123"
 SQL_SCRIPT="mariadb_tables.txt"
 
 command_exists() {
