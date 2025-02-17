@@ -41,5 +41,17 @@
   }
 
 #map {
-    height: 500px;
-  }
+    width: 100% !important;
+    height: 500px !important;
+    min-height: 500px !important;
+}
+  
+/* Ensure parent containers don't collapse */
+.card-body > #map {
+    padding: 0 !important;
+}
+  
+/* Optionally style the container */
+#v-pills-geo-connections .card-body {
+    padding: 0 !important;
+}

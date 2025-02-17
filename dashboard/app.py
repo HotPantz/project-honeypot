@@ -10,6 +10,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import re
 
+LOGS_FOLDER = "/var/log/honeypot/"
+
 app = Flask(__name__)
 socketio = SocketIO(app)
 
@@ -69,7 +71,7 @@ def live_shell():
             shell['online'] = shell['status']  # Utiliser le statut de la base de données
             
             # Compter les commandes dans le dernier fichier de session
-            logs_dir = os.path.join(os.getcwd(), "../logs")
+            logs_dir = LOGS_FOLDER
             session_files = [f for f in os.listdir(logs_dir) if f.startswith(f"session_{shell['ip']}_")]
             if session_files:
                 session_files.sort(reverse=True)
@@ -117,7 +119,7 @@ def shell_detail(ip):
 
 @app.route('/live_content/<ip>')
 def live_content(ip):
-    logs_dir = os.path.join(os.getcwd(), "../logs")
+    logs_dir = LOGS_FOLDER
     session_files = [f for f in os.listdir(logs_dir) if f.startswith(f"session_{ip}_")]
     if not session_files:
         return jsonify({"content": ""})
@@ -191,6 +193,49 @@ def get_commands():
         return jsonify(commands)
     finally:
         connection.close()
+
+@app.route('/active_connections_count')
+def active_connections_count():
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+                SELECT COUNT(DISTINCT ip) as count 
+                FROM connections 
+                WHERE status = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE);
+            """
+            cursor.execute(sql)
+            result = cursor.fetchone()
+        return jsonify(count=result['count'])
+    finally:
+        connection.close()
+
+def background_active_connections_update():
+    while True:
+        connection = get_db_connection()
+        try:
+            with connection.cursor() as cursor:
+                sql = """
+                    SELECT COUNT(DISTINCT ip) as count 
+                    FROM connections 
+                    WHERE status = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE);
+                """
+                cursor.execute(sql)
+                result = cursor.fetchone()
+                count = result['count']
+        except Exception:
+            count = 0
+        finally:
+            connection.close()
+        socketio.emit('active_connections_update', {'count': count})
+        time.sleep(10) #update every 10 seconds
+
+#status update receive from the ssh server for the live shell and shell detail pages
+@app.route('/notify_status', methods=['POST'])
+def notify_status():
+    data = request.get_json()
+    socketio.emit('status_update', data)
+    return jsonify(success=True)
 
 @app.route('/connections_over_time')
 def connections_over_time():
@@ -329,7 +374,7 @@ class LogFileEventHandler(FileSystemEventHandler):
                 pass
 
 def start_log_watcher():
-    logs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../logs')
+    logs_folder = LOGS_FOLDER  # use the correct absolute path
     for log_file in glob.glob(os.path.join(logs_folder, "*.txt")):
         try:
             with open(log_file, "r") as f:
@@ -350,5 +395,6 @@ def start_log_watcher():
     observer.join()
 
 if __name__ == '__main__':
+    socketio.start_background_task(background_active_connections_update)
     socketio.start_background_task(start_log_watcher)
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)

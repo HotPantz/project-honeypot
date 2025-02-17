@@ -37,8 +37,21 @@
     
     <div class="container mt-5">
       <h1 class="text-center mb-4">Honeypot Dashboard</h1>
+      <!-- Active connections count -->
+      <div class="row mb-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header">
+              Active Connection Count (realtime):
+            </div>
+            <div class="card-body">
+              <h2 id="activeConnections">Loading...</h2>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="row">
-        <!-- Left Column: Live Shell Output (no IP selector) -->
+        <!-- Left column: live shell output of all shells (across all connected IPs) -->
         <div class="col-md-6">
           <div class="card mb-4">
             <div class="card-header">
@@ -49,7 +62,7 @@
             </div>
           </div>
         </div>
-        <!-- Right Column: SSH Connections -->
+        <!-- Right column: All SSH connections logged to date -->
         <div class="col-md-6">
           <div class="card mb-4">
             <div class="card-header">
@@ -133,6 +146,22 @@
           });
         })
         .catch(err => console.error('Error fetching connections list:', err));
+
+      // Active Connections Section: fetch and update count every 30 seconds
+      function updateActiveConnections() {
+        fetch('/active_connections_count')
+          .then(response => response.json())
+          .then(data => {
+            document.getElementById('activeConnections').textContent = data.count;
+          })
+          .catch(err => console.error('Error fetching active connections count:', err));
+      }
+      
+      updateActiveConnections();
+      setInterval(updateActiveConnections, 30000);
+      socket.on('active_connections_update', function(data) {
+        document.getElementById('activeConnections').textContent = data.count;
+      });
     </script>
   </body>
 </html>
