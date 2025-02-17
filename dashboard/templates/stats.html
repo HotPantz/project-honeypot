@@ -330,7 +330,7 @@
     }).addTo(map);
 
     // Add markers for each connection
-    var geoConnections = {{ geo_connections | tojson }};
+    var geoConnections = "{{ geo_connections | tojson }}";
     geoConnections.forEach(function (conn) {
       L.marker([conn.lat, conn.lon])
         .bindPopup(`<b>IP:</b> ${conn.ip}<br><b>Country:</b> ${conn.country}<br><b>City:</b> ${conn.city}`)
