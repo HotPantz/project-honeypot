@@ -8,12 +8,18 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string>
+#include <stdexcept>
 #include <cstdio>
+#include <cstring>
+#include <cerrno>
+#include <cstring>
+#include <unistd.h>  // for getuid()
 
 std::ofstream sessionLogFile;
 std::string sessionLogFilePath;
 
-// Callback function for libcurl to write data into a string
+
+//Callback function for libcurl to write data into a string
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) 
 {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
@@ -34,7 +40,7 @@ void write_error_to_log(const std::string& errMsg)
     }
 }
 
-// gets the public IP
+//deprecated
 std::string get_public_ip() 
 {
     CURL* curl;
@@ -60,29 +66,55 @@ std::string get_public_ip()
 }
 
 // Initializes a unique log file for the session
-void initialize_session_log(const std::string& publicIP) 
-{
-    std::string logDir = "../logs/";
+void initialize_session_log(const std::string& publicIP) {
+    std::string logDir = LOG_DIR; // static location in /var/log/honeypot/
+    std::cerr << "[DEBUG] Trying log directory: " << logDir << std::endl;
+    std::cerr << "[DEBUG] Effective UID: " << getuid() << std::endl;
+    
     struct stat info;
-    if(stat(logDir.c_str(), &info) != 0) 
-    {
-        if(mkdir(logDir.c_str(), 0777) != 0) 
-        {
+    if (stat(logDir.c_str(), &info) != 0) {
+        if (mkdir(logDir.c_str(), 0777) != 0) {
+            std::cerr << "[DEBUG] mkdir failed for " << logDir << ". Error: " 
+                      << std::strerror(errno) << std::endl;
             return;
+        } else {
+            std::cerr << "[DEBUG] Successfully created " << logDir << std::endl;
+        }
+    } else {
+        if (!S_ISDIR(info.st_mode)) {
+            std::cerr << "[DEBUG] " << logDir << " exists but is not a directory." << std::endl;
+            return;
+        } else {
+            std::cerr << "[DEBUG] Log directory " << logDir << " exists." << std::endl;
         }
     }
-
+    
     std::time_t now = std::time(nullptr);
     std::tm* localDate = std::localtime(&now);
     std::ostringstream oss;
     oss << logDir << "session_" << publicIP << "_" 
         << std::put_time(localDate, "%Y-%m-%d_%H-%M-%S") << ".txt";
     sessionLogFilePath = oss.str();
-
+    
+    std::cerr << "[DEBUG] Constructed session log file path: " << sessionLogFilePath << std::endl;
+    
+    // Temporarily set umask to 0022 so that the file is created with 0644 permissions
+    mode_t old_mask = umask(0022);
     sessionLogFile.open(sessionLogFilePath, std::ios::app);
-    if(!sessionLogFile.is_open())
-    {
+    umask(old_mask);
+    
+    if (!sessionLogFile.is_open()) {
+        std::cerr << "[DEBUG] Failed to open session log file: " << sessionLogFilePath 
+                  << ". Error: " << std::strerror(errno) << std::endl;
         return;
+    } else {
+        std::cerr << "[DEBUG] Successfully opened session log file: " << sessionLogFilePath << std::endl;
+    }
+    
+    // Optionally, force the file permissions to 0644 if needed
+    if (chmod(sessionLogFilePath.c_str(), 0644) != 0) {
+        std::cerr << "[DEBUG] Failed to chmod session log file: " << sessionLogFilePath 
+                  << ". Error: " << std::strerror(errno) << std::endl;
     }
 }
 
