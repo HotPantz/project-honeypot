@@ -30,50 +30,45 @@ The project is organized as follows:
 
 ```
 .
-├── .env                  # Environment configuration file
-├── .gitignore            # Git ignore rules
-├── dashboard             # Flask dashboard for visualization and control
-│   ├── app.py            # Main Flask application
-│   ├── static/           # Static assets for the dashboard
-│   ├── templates/        # HTML templates for the dashboard
-│   └── venv/             # Virtual environment for Python dependencies
-├── data/                 # Data files used by the project
-│
-│
+├── .env                   # Environment configuration file
+├── .gitignore             # Git ignore rules
+├── .vscode/               # VS Code settings and workspace configuration
+├── dashboard/             # Flask dashboard for visualization and control
+│   ├── app.py             # Main Flask application
+│   ├── static/            # Static assets for the dashboard
+│   ├── templates/         # HTML templates for the dashboard
+│   └── venv/              # Virtual environment for Python dependencies
+
 mariadb_setup.sh
 
-      # Script to set up the MariaDB database
+       # Script to set up the MariaDB database
 ├── 
-│
+
 mariadb_tables.txt
 
-    # SQL commands for database tables
+     # SQL commands for database tables (updated schema)
 ├── 
-│
-pseudonyms.txt
 
-        # List of pseudonyms for simulated users
-├── 
-│
-README.md
+pam_service_setup.sh
 
-             # Project documentation
-├── shell-emu             # Honeypot emulator directory
-│   ├── bin/              # Contains the `fshell` executable after build
-│   ├── headers/          # Header files (e.g., for shell parsing)
-│   └── ...               # Additional source files and assets
-├── ssh-server            # SSH server simulation files
-│   └── ssh_server.py     # Python script for the SSH server
+   # Script to configure the PAM service for authentication
 ├── 
 
 ssh_user_setup.sh
 
-     # Script for setting up simulated SSH users
-└── 
+      # Script to set up SSH user accounts
+├── ssh-server/           # SSH server configurations and related files
+├── shell-emu/            # Honeypot emulator directory (includes executables and support files)
+├── 
 
 TODO.md
 
-               # Project to-do list and roadmap
+              # Project task list and roadmap
+└── 
+
+README.md
+
+            # Project documentation
 ```
 
 ### Key Files
@@ -96,9 +91,21 @@ TODO.md
 
 **Connection Log : ```connections```**
 
-| id | ip        | pseudo_id           | duration | timestamp           |
-|----|-----------|---------------------|----------|---------------------|
-| 1  | 127.0.0.1 | 1738517455.8485122  | 0        | 2025-02-02 18:30:55 |
+| id | ip        | pseudo_id           | duration | status | timestamp           |
+|----|-----------|---------------------|----------|--------|---------------------|
+| 1  | 127.0.0.1 | 1738517455.8485122  | 0        | 0      | 2025-02-02 18:30:55 |
+
+**IP Geolocations Log : ```ip_geolocations```**
+
+| id | ip         | country | country_code | region | city | lat  | lon  | fetched_at           |
+|----|------------|---------|--------------|--------|------|------|------|----------------------|
+| 1  | 192.168.1.1| USA     | US           | CA     | SF   | 37.77| -122.42 | 2025-02-02 20:30:00 |
+
+**Login Attempts Log : ```login_attempts```**
+
+| id | ip         | username   | password    | attempt_time           |
+|----|------------|------------|-------------|------------------------|
+| 1  | 192.168.1.1| admin      | secret123   | 2025-02-02 20:32:00    |
 
 ## Installation
 
@@ -121,7 +128,7 @@ TODO.md
     cd project-honeypot
     ```
 
-2. **Build the Project**
+2. **Build the shell**
 
     Navigate to the shell-emu directory and run:
 
@@ -129,16 +136,21 @@ TODO.md
     make
     ```
 
-3. **Set Up the Virtual Environment**
-    - Install and configure your preferred virtualization software.
-    - Create a new virtual machine and ensure it is isolated from your host network.
-    - Deploy the honeypot within the virtual machine to maintain host security.
+3. **Set up the environment**
+    Run the setup scripts : 
+    ```bash
+        mariadb_setup.sh; pam_service_setup.sh; ssh_user_setup.sh
+    ```
+    Create an RSA key in ssh-server/key :
+    ```bash 
+    ssh-keygen -t rsa -b 2048 -f serv_rsa.key
+    ```
 
 ## Usage
 
 1. **Start the SSH Server**
 
-    We need to run the server with sudo privileges to read ```/etc/shadow``` for password authentication :
+    We need to run the server with sudo privileges to read ```/etc/shadow``` for password authentication with PAM :
 
     ```bash
     sudo ../.venv/bin/python ssh_server.py
