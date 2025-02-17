@@ -79,6 +79,7 @@
 
       // Réception des mises à jour de statut en temps réel
       socket.on('status_update', function(data) {
+        console.log("Status update received:", data);  // Debug log
         const shellRow = document.querySelector(`tr[data-ip="${data.ip}"]`);
         if (shellRow) {
           const statusBadge = shellRow.querySelector('.badge');
@@ -93,8 +94,6 @@
           }
         }
       });
-
-      // Autres événements Socket.IO...
     </script>
   </body>
 </html>

@@ -109,7 +109,11 @@
       // Initialisation de Socket.IO
       const socket = io();
 
-      // Réception en temps réel des logs
+      socket.on('connect', function() {
+        console.log('Socket.IO connected');
+      });
+
+      // Mise à jour en temps réel des logs
       socket.on('new_live', function(data) {
         if (data.ip === "{{ ip }}") {
           const live = document.getElementById('live');
@@ -119,18 +123,10 @@
         }
       });
 
-      // Événement signalant la création d'un nouveau fichier de session :
-      // Recharger le contenu pour cette IP.
-      socket.on('new_session', function(data) {
-        if (data.ip === "{{ ip }}") {
-          loadSessionContent();
-        }
-      });
-
-      // Événement signalant la mise à jour de l'état en ligne :
-      // Mettre à jour le badge de statut pour cette IP.
+      // Mise à jour du statut en ligne pour la session courante
       socket.on('status_update', function(data) {
-        if (data.ip === "{{ ip }}") {
+        // Ensure the IP coming in exactly matches the one in the template.
+        if(data.ip === "{{ ip }}") {
           const statusBadge = document.getElementById('status-badge');
           if (data.online) {
             statusBadge.classList.remove('bg-danger');
