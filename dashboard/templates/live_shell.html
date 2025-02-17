@@ -1,4 +1,3 @@
-<!-- templates/live_shell.html -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -43,14 +42,22 @@
         <thead>
           <tr>
             <th>IP</th>
+            <th>Location</th>
             <th>Status</th>
             <th>Action</th>
+            <th>Commands</th>
           </tr>
         </thead>
         <tbody>
           {% for shell in shells %}
           <tr>
             <td>{{ shell.ip }}</td>
+            <td>
+              {% if shell.country_code %}
+                <img src="https://flagcdn.com/16x12/{{ shell.country_code|lower }}.png" alt="{{ shell.country }}" title="{{ shell.country }}">
+              {% endif %}
+              {{ shell.city }} - {{ shell.country }}
+            </td>
             <td>
               {% if shell.online %}
                 <span class="badge bg-success">Online</span>
@@ -61,6 +68,7 @@
             <td>
               <a href="/live_shell/{{ shell.ip }}" class="btn btn-sm btn-primary action-btn">Access Live Shell</a>
             </td>
+            <td>{{ shell.command_count }}</td>
           </tr>
           {% endfor %}
         </tbody>
