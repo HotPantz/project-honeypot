@@ -30,3 +30,16 @@
     height: 500px; /* Adjust height as needed */
     width: 100%;
 }
+
+.nav-link.active {
+    background-color: #e9ecef;
+  }
+
+.chart-container {
+    position: relative;
+    height: 400px;
+  }
+
+#map {
+    height: 500px;
+  }

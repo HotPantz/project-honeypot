@@ -223,6 +223,7 @@ def stats():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
+            # Récupérer les commandes les plus populaires
             popular_cmd_query = """
                 SELECT command, COUNT(*) AS count
                 FROM user_commands
@@ -233,16 +234,51 @@ def stats():
             cursor.execute(popular_cmd_query)
             popular_commands = cursor.fetchall()
             
+            # Récupérer la durée moyenne des sessions
             avg_duration_query = "SELECT AVG(duration) AS avg_duration FROM connections;"
             cursor.execute(avg_duration_query)
             avg_duration = cursor.fetchone()
             
+            # Récupérer les mots de passe les plus populaires
+            popular_passwords_query = """
+                SELECT password, COUNT(*) AS count
+                FROM login_attempts
+                GROUP BY password
+                ORDER BY count DESC
+                LIMIT 10;
+            """
+            cursor.execute(popular_passwords_query)
+            popular_passwords = cursor.fetchall()
+
+            # Récupérer les noms d'utilisateur les plus tentés
+            popular_usernames_query = """
+                SELECT username, COUNT(*) AS count
+                FROM login_attempts
+                GROUP BY username
+                ORDER BY count DESC
+                LIMIT 10;
+            """
+            cursor.execute(popular_usernames_query)
+            popular_usernames = cursor.fetchall()
+
+            # Récupérer les informations géographiques des connexions
+            geo_connections_query = """
+                SELECT ip, country, city, lat, lon
+                FROM ip_geolocations
+                WHERE lat IS NOT NULL AND lon IS NOT NULL;
+            """
+            cursor.execute(geo_connections_query)
+            geo_connections = cursor.fetchall()
+            
         return render_template('stats.html',
                                popular_commands=popular_commands,
-                               avg_duration=avg_duration['avg_duration'])
+                               avg_duration=avg_duration['avg_duration'],
+                               popular_passwords=popular_passwords,
+                               popular_usernames=popular_usernames,
+                               geo_connections=geo_connections)
     finally:
         connection.close()
-
+        
 def emit_new_live(log_line, ip=""):
     socketio.emit('new_live', {'log': log_line, 'ip': ip})
 
