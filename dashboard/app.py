@@ -38,48 +38,102 @@ def init_db():
 
 init_db()
 
-# Route for the dashboard. The navbar now only contains Dashboard and Live Shell.
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# New route for Live Shell page that queries the database for distinct IPs.
 @app.route('/live_shell')
 def live_shell():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            # Get distinct IPs and the latest timestamp for each.
             sql = """
-                SELECT ip, MAX(timestamp) as last_seen
-                FROM connections
-                GROUP BY ip
+                SELECT 
+                    c.ip,
+                    MAX(c.timestamp) as last_seen,
+                    g.country,
+                    g.country_code,
+                    g.city
+                FROM connections c
+                LEFT JOIN ip_geolocations g ON c.ip = g.ip
+                GROUP BY c.ip, g.country, g.country_code, g.city
                 ORDER BY last_seen DESC;
             """
             cursor.execute(sql)
             shells = cursor.fetchall()
-        # Define a threshold to consider an IP as 'online' (5 minutes).
-        threshold = datetime.now() - timedelta(minutes=5)
+        
+        threshold = datetime.now() - timedelta(minutes=1)
         for shell in shells:
-            # Convert last_seen to a datetime object if necessary.
             if isinstance(shell['last_seen'], str):
                 shell['last_seen'] = datetime.strptime(shell['last_seen'], '%Y-%m-%d %H:%M:%S')
             shell['online'] = True if shell['last_seen'] >= threshold else False
+            
+            # Compter les commandes dans le dernier fichier de session
+            logs_dir = os.path.join(os.getcwd(), "../logs")
+            session_files = [f for f in os.listdir(logs_dir) if f.startswith(f"session_{shell['ip']}_")]
+            if session_files:
+                session_files.sort(reverse=True)
+                session_path = os.path.join(logs_dir, session_files[0])
+                try:
+                    with open(session_path, 'r') as f:
+                        commands = f.readlines()
+                    shell['command_count'] = len(commands)
+                except Exception as e:
+                    shell['command_count'] = 0
+            else:
+                shell['command_count'] = 0
+
         return render_template('live_shell.html', shells=shells)
     finally:
         connection.close()
 
-# Route to access the live shell of a specific IP.
 @app.route('/live_shell/<ip>')
 def shell_detail(ip):
-    return render_template('shell_detail.html', ip=ip)
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+                SELECT 
+                    c.ip,
+                    MAX(c.timestamp) as last_seen,
+                    g.country,
+                    g.country_code,
+                    g.city
+                FROM connections c
+                LEFT JOIN ip_geolocations g ON c.ip = g.ip
+                WHERE c.ip = %s
+                GROUP BY c.ip, g.country, g.country_code, g.city
+            """
+            cursor.execute(sql, (ip,))
+            result = cursor.fetchone()
+        if result:
+            threshold = datetime.now() - timedelta(minutes=5)
+            if isinstance(result['last_seen'], str):
+                result['last_seen'] = datetime.strptime(result['last_seen'], '%Y-%m-%d %H:%M:%S')
+            result['online'] = True if result['last_seen'] >= threshold else False
+        return render_template('shell_detail.html', ip=ip, details=result)
+    finally:
+        connection.close()
 
-# /live route now returns an empty list (no history displayed)
+@app.route('/live_content/<ip>')
+def live_content(ip):
+    logs_dir = os.path.join(os.getcwd(), "../logs")
+    session_files = [f for f in os.listdir(logs_dir) if f.startswith(f"session_{ip}_")]
+    if not session_files:
+        return jsonify({"content": ""})
+    session_files.sort(reverse=True)
+    session_path = os.path.join(logs_dir, session_files[0])
+    try:
+        with open(session_path, 'r') as f:
+            content = f.read()
+        return jsonify({"content": content})
+    except Exception as e:
+        return jsonify({"content": "", "error": str(e)})
+
 @app.route('/live')
 def get_live():
     return jsonify([])
 
-# Fetching the IPs for the selector in the live shell section
 @app.route('/connection_ips')
 def get_connection_ips():
     connection = get_db_connection()
@@ -88,12 +142,10 @@ def get_connection_ips():
             sql = "SELECT DISTINCT ip FROM connections ORDER BY timestamp DESC;"
             cursor.execute(sql)
             ips = cursor.fetchall()
-        # Return a simple list of IP strings.
         return jsonify([row['ip'] for row in ips])
     finally:
         connection.close()
 
-# Fetching connections & geolocation data from the database for the SSH Connections section
 @app.route('/connections')
 def get_connections():
     connection = get_db_connection()
@@ -122,7 +174,6 @@ def get_connections():
     finally:
         connection.close()
 
-# Fetching the commands from the database
 @app.route('/commands')
 def get_commands():
     connection = get_db_connection()
@@ -167,13 +218,11 @@ def connections_over_time():
     finally:
         connection.close()
 
-# New route for Stats
 @app.route('/stats')
 def stats():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            # Get the 10 most popular commands
             popular_cmd_query = """
                 SELECT command, COUNT(*) AS count
                 FROM user_commands
@@ -184,10 +233,9 @@ def stats():
             cursor.execute(popular_cmd_query)
             popular_commands = cursor.fetchall()
             
-            # Calculate the average session duration
             avg_duration_query = "SELECT AVG(duration) AS avg_duration FROM connections;"
             cursor.execute(avg_duration_query)
-            avg_duration = cursor.fetchone()  # This returns a dict with key 'avg_duration'
+            avg_duration = cursor.fetchone()
             
         return render_template('stats.html',
                                popular_commands=popular_commands,
@@ -195,17 +243,21 @@ def stats():
     finally:
         connection.close()
 
-# Modified emit_new_live function to include the ip associated with the log line.
 def emit_new_live(log_line, ip=""):
     socketio.emit('new_live', {'log': log_line, 'ip': ip})
 
-# Dictionary to track file offsets per file (only new content is processed)
 file_offsets = {}
 
 class LogFileEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if not event.is_directory and event.src_path.endswith('.txt'):
             file_offsets[event.src_path] = 0
+            filename = os.path.basename(event.src_path)
+            if filename.startswith("session_"):
+                match = re.search(r'session_([\d\.]+)_', filename)
+                if match:
+                    ip = match.group(1)
+                    socketio.emit('new_session', {'ip': ip})
 
     def on_modified(self, event):
         if not event.is_directory and event.src_path.endswith('.txt'):
@@ -218,18 +270,14 @@ class LogFileEventHandler(FileSystemEventHandler):
                     new_lines = f.readlines()
                     file_offsets[event.src_path] = f.tell()
                     for line in new_lines:
-                        # Ignore commented lines.
                         if line.strip().startswith("//"):
                             continue
 
-                        # Check if the line contains "disconnected" (case insensitive)
                         if "disconnected" in line.lower():
-                            # Attempt to extract the IP from the line
                             match = re.search(r'User ([\d\.]+)', line)
                             if match:
                                 ip = match.group(1)
                             else:
-                                # If not found in the line, extract the IP from the session log filename
                                 file_match = re.search(r'session_([\d\.]+)_', event.src_path)
                                 ip = file_match.group(1) if file_match else ""
                             print("Deconnexion detected:", line.strip(), "IP:", ip)

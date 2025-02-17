@@ -1,4 +1,3 @@
-<!-- templates/shell_detail.html -->
 <!DOCTYPE html>
 <html>
   <head>
@@ -8,29 +7,32 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <style>
+      .terminal-prompt {
+        color: #0f0 !important;
+      }
       #live {
-          background-color: black !important;
-          color: white !important;
-          font-family: monospace !important;
-          padding: 10px !important;
-          height: 350px !important;
-          overflow-y: auto !important;
-          line-height: 1.2 !important;
-          margin: 0 !important;
-          border: 1px solid #333 !important;
-          border-radius: 4px !important;
+        background-color: black !important;
+        color: white !important;
+        font-family: monospace !important;
+        padding: 10px !important;
+        height: 350px !important;
+        overflow-y: auto !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+        border: 1px solid #333 !important;
+        border-radius: 4px !important;
       }
       #live span.terminal-prompt {
-          color: #0f0 !important;
-          margin-right: 5px !important;
-          padding: 0 !important;
-          display: inline !important;
-          line-height: 1.2 !important;
+        color: #0f0 !important;
+        margin-right: 5px !important;
+        padding: 0 !important;
+        display: inline !important;
+        line-height: 1.2 !important;
       }
     </style>
   </head>
   <body>
-    <!-- Navigation Bar -->
+    <!-- Barre de navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <div class="container-fluid">
         <a class="navbar-brand" href="/">Dashboard</a>
@@ -52,17 +54,76 @@
     
     <div class="container mt-5">
       <h1>Live Shell for {{ ip }}</h1>
+      <div>
+        <span>
+          {% if details.country_code %}
+            <img src="https://flagcdn.com/16x12/{{ details.country_code|lower }}.png" alt="{{ details.country }}" title="{{ details.country }}">
+          {% endif %}
+          {{ details.city }} - {{ details.country }}
+        </span>
+        <span class="badge {{ 'bg-success' if details.online else 'bg-danger' }}">
+          {{ 'Online' if details.online else 'Offline' }}
+        </span>
+      </div>
       <pre id="live"></pre>
     </div>
-    
+
     <script>
-      var socket = io();
-      // Listen for live events for this specific IP.
+      // Fonction de formatage d'une ligne de log brute
+      function formatLogLine(line) {
+        line = line.trim();
+        if (!line) return "";
+        const parts = line.split(',');
+        if (parts.length < 3) return line;
+        const timestamp = parts[0].trim();
+        const ip = parts[1].trim();
+        const command = parts.slice(2).join(',').trim();
+        return `[${timestamp}] ${ip}: ${command}`;
+      }
+
+      // Fonction pour charger et afficher le contenu du fichier de session
+      function loadSessionContent() {
+        fetch(`/live_content/{{ ip }}`)
+          .then(response => response.json())
+          .then(data => {
+            const live = document.getElementById('live');
+            const lines = data.content.split("\n");
+            const formattedLines = lines
+              .map(line => {
+                const formatted = formatLogLine(line);
+                return formatted ? `<span class="terminal-prompt">$ </span>${formatted}` : '';
+              })
+              .filter(line => line !== "")
+              .join("\n");
+            live.innerHTML = formattedLines;
+            if (formattedLines) {
+              live.innerHTML += "\n"; // Ajout d'un retour à la ligne si le contenu n'est pas vide
+            }
+            live.scrollTop = live.scrollHeight;
+          })
+          .catch(err => console.error("Erreur lors du chargement du contenu live :", err));
+      }
+
+      document.addEventListener("DOMContentLoaded", loadSessionContent);
+
+      // Initialisation de Socket.IO
+      const socket = io();
+
+      // Réception en temps réel des logs
       socket.on('new_live', function(data) {
         if (data.ip === "{{ ip }}") {
-          var live = document.getElementById('live');
-          live.innerHTML += '<span class="terminal-prompt">$ </span>' + data.log + '\n';
+          const live = document.getElementById('live');
+          const newLine = `<span class="terminal-prompt">$ </span>${formatLogLine(data.log)}`;
+          live.innerHTML += newLine + "\n";
           live.scrollTop = live.scrollHeight;
+        }
+      });
+
+      // Événement signalant la création d'un nouveau fichier de session :
+      // Recharger le contenu pour cette IP.
+      socket.on('new_session', function(data) {
+        if (data.ip === "{{ ip }}") {
+          loadSessionContent();
         }
       });
     </script>
