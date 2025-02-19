@@ -26,56 +26,47 @@
 
 ## File Structure
 
-The project is organized as follows:
-
 ```
 .
-├── .env                   # Environment configuration file
-├── .gitignore             # Git ignore rules
-├── .vscode/               # VS Code settings and workspace configuration
-├── dashboard/             # Flask dashboard for visualization and control
-│   ├── app.py             # Main Flask application
-│   ├── static/            # Static assets for the dashboard
-│   ├── templates/         # HTML templates for the dashboard
-│   └── venv/              # Virtual environment for Python dependencies
-
-mariadb_setup.sh
-
-       # Script to set up the MariaDB database
-├── 
-
-mariadb_tables.txt
-
-     # SQL commands for database tables (updated schema)
-├── 
-
-pam_service_setup.sh
-
-   # Script to configure the PAM service for authentication
-├── 
-
-ssh_user_setup.sh
-
-      # Script to set up SSH user accounts
-├── ssh-server/           # SSH server configurations and related files
-├── shell-emu/            # Honeypot emulator directory (includes executables and support files)
-├── 
-
-TODO.md
-
-              # Project task list and roadmap
-└── 
-
+├── .env                        # Database configuration (host, username, db name, password)
+├── .gitignore            
+dashboard/                  # Flask dashboard
+│   ├── app.py                  # Main app
+│   ├── static/                 # Static assets for the dashboard (css)
+│   └── templates/              # HTML pages
+setup/
+│   ├── mariadb_setup.sh        # MariaDB user, and database setup
+│   ├── mariadb_tables.txt      # SQL commands for database tables
+│   ├── pam_service_setup.sh    # PAM service config for authentication
+│   └── ssh_user_setup.sh       # SSH user accounts setup
+ssh-server/                 # SSH server & config
+│   ├── key/
+│   │   └── rsakey.dummy    # Contains the command to generate an RSA key for the server
+│   └── ssh_server.py
+shell-emu/
+├── bin/
+├── src/
+│   ├── fshell.cpp
+│   ├── shell_parser.cpp
+│   ├── logger.cpp
+│   └── main.cpp
+├── headers/
+│   ├── fshell.hpp
+│   ├── shell_parser.hpp
+│   └── logger.hpp
+└── Makefile
+TODO.md            # Project task list and roadmap
+│
 README.md
-
-            # Project documentation
+└── 
+            
 ```
 
 ### Key Files
 
 - **fshell.cpp**: Implements the main loop and command execution logic for the honeypot. It uses a linked list to manage command tokens and interfaces with the shell parser to simulate shell functionalities.
 - **shell_parser.hpp & shell_parser.cpp**: Define and implement the parsing functions and the Node class for command tokens. These files handle tokenizing input, managing command sequences, redirections, and pipes.
-- **Makefile**: Automates the build process, compiling all necessary files into the `fshell` executable located in `shell-emu/bin/`.
+- **Makefile**: Automates the build process, compiling all necessary files into the `fshell` executable located in `/usr/bin/fshell`.
 - **dashboard/app.py**: Runs the Flask dashboard for monitoring and control.
 - **ssh-server/ssh_server.py**: Emulates the SSH server that provides an interactive shell interface to external connections.
 
@@ -113,13 +104,12 @@ README.md
 
 - **C++ Compiler**: Ensure you have a C++ compiler installed (e.g., `g++`).
 - **CMake**: Required for building the project.
-- **Python & Dependencies**: Install the required Python packages:
-  
-  ```bash
-  pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog pam passlib six
-  ```
+- **Python & Dependencies, Venv**: The server and dashboard are Python apps running in a Python Venv.
+- **VirtualBox** (optional): If you would like to run the app inside a VM for safety measures.
 
-### Steps
+---
+
+### Manual Installation/Setup
 
 1. **Clone the Repository**
 
@@ -136,21 +126,72 @@ README.md
     make
     ```
 
-3. **Set up the environment**
-    Run the setup scripts : 
+3. **Set Up the Environment**
+
+    a. **Create and Activate a Python Virtual Environment**
+
+    Create a virtual environment in the project root:
+
     ```bash
-        mariadb_setup.sh; pam_service_setup.sh; ssh_user_setup.sh
+    python -m venv .venv
+    source .venv/bin/activate
     ```
-    Create an RSA key in ssh-server/key :
-    ```bash 
-    ssh-keygen -t rsa -b 2048 -f serv_rsa.key
+
+    b. **Install Python Dependencies**
+
+    With the virtual environment activated, install the required packages:
+
+    ```bash
+    pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog pam passlib six
     ```
+
+    c. **Run Setup Scripts**
+
+    Run the setup scripts individually:
+
+    ```bash
+    ./setup/mariadb_setup.sh
+    ./setup/pam_service_setup.sh
+    ./setup/ssh_user_setup.sh
+    ```
+
+    d. **Generate an RSA Key**
+
+    Create an RSA key in the ```ssh-server/key``` directory:
+
+    ```bash
+    ssh-keygen -t rsa -b 2048 -f ssh-server/key/serv_rsa.key
+    ```
+
+---
+
+### Automated Setup
+
+Alternatively, you can run the provided automated setup script, which runs all the necessary setup scripts for you:
+
+1. **Clone the Repository**
+
+    ```bash
+    git clone https://github.com/HotPantz/project-honeypot.git
+    cd project-honeypot
+    ```
+
+2. **Run the Automated Setup Script**
+
+    Execute the run_setup.sh script by running:
+    ```bash
+    ./run_setup.sh
+    ```
+
+    The script will prompt you to confirm that the database passwords are updated in .env and mariadb_setup.sh before proceeding.
+
+---
 
 ## Usage
 
 1. **Start the SSH Server**
 
-    We need to run the server with sudo privileges to read ```/etc/shadow``` for password authentication with PAM :
+    We need to run the server with sudo privileges to read ```/etc/shadow``` for password authentication with PAM:
 
     ```bash
     sudo ../.venv/bin/python ssh_server.py
