@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <fstream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -21,44 +22,38 @@ std::string command, outputFile, inputFile, errFile;
 bool run_bg = false;
 
 //Command blacklist
-std::vector<std::string> blacklist = { "rm", "shutdown", "reboot", "poweroff", "init", "mkfs", "dd" };
+std::vector<std::string> blacklist = { "rm", "shutdown", "reboot", "poweroff", "init", "mkfs", "dd", "nfs-server", "systemctl", "htop" };
 
-void doexec() {
+void doexec()
+{
 
-    switch(command){
-        case: "pstree":
-            std::ifstream fakePstree("/usr/share/fshell/cmd1");
-            if(!fakePstree){
-                //we won't do anything since we don't want to print it to the user :)
-                break;
-            } 
-            else{
-                std::string line;
-                while(std::getline(fakePstree, line))
-                {
-                    std::cout << line << std::endl;
-                }
-                fakePstree.close();
-            }
-            exit(EXIT_SUCCESS);
-            break;
-        case: "ps":
-            std::ifstream fakePs("/usr/share/fshell/cmd2");
-            if(!fakePstree){
-                break;
-            } 
-            else{
+    if(command == "pstree") 
+    {
+        std::ifstream fakePstree("/usr/share/fshell/cmd1");
+        if(fakePstree) 
+        {
             std::string line;
-                while(std::getline(fakePs, line)) 
-                {
-                    std::cout << line << std::endl;
-                }
-                fakePs.close();
+            while(std::getline(fakePstree, line)) 
+            {
+                std::cout << line << std::endl;
             }
-            exit(EXIT_SUCCESS);
-            break;
-        default:
-            break;
+            fakePstree.close();
+        }
+        exit(EXIT_SUCCESS);
+    } 
+    else if (command == "ps")
+    {
+        std::ifstream fakePs("/usr/share/fshell/cmd2");
+        if(fakePs)
+        {
+            std::string line;
+            while (std::getline(fakePs, line))
+            {
+                std::cout << line << std::endl;
+            }
+            fakePs.close();
+        }
+        exit(EXIT_SUCCESS);
     }
     
     std::string token;
