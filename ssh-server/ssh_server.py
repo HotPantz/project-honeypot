@@ -29,6 +29,8 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 
+DASHBOARD_URL = os.getenv('DASHBOARD_URL', 'http://localhost:5000') #default :localhost:5000
+
 if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME]):
     raise EnvironmentError("Missing required database environment variables")
 
@@ -173,8 +175,7 @@ def handle_connection(client, addr):
 
     #emitting connection status updates to the frontend
     try:
-        #TODO: make it so that the adress of the page is loaded from the .env file
-        requests.post("http://localhost:5000/notify_status", json={'ip': ip, 'online': True})
+        requests.post(f"{DASHBOARD_URL}/notify_status", json={'ip': ip, 'online': True})
     except Exception as e:
         print("Error notifying status update:", e)
 
@@ -256,7 +257,7 @@ def handle_connection(client, addr):
         chan.close()
         transport.close()
         try:
-            requests.post("http://localhost:5000/notify_status", json={'ip': ip, 'online': False})
+            requests.post(f"{DASHBOARD_URL}/notify_status", json={'ip': ip, 'online': False})
         except Exception as e:
             print("Error notifying status update:", e)
 
