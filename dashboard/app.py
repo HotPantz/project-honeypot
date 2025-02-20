@@ -6,7 +6,8 @@ import glob
 from datetime import datetime, timedelta
 import time
 from dotenv import load_dotenv
-from watchdog.observers import Observer
+#from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 import re
 
@@ -373,8 +374,10 @@ class LogFileEventHandler(FileSystemEventHandler):
             except Exception:
                 pass
 
+#Watchdog that watches the logs folder for new (created after the start of the app) 
+#log files and new log lines
 def start_log_watcher():
-    logs_folder = LOGS_FOLDER  # use the correct absolute path
+    logs_folder = LOGS_FOLDER
     for log_file in glob.glob(os.path.join(logs_folder, "*.txt")):
         try:
             with open(log_file, "r") as f:
@@ -384,7 +387,7 @@ def start_log_watcher():
             file_offsets[log_file] = 0
 
     event_handler = LogFileEventHandler()
-    observer = Observer()
+    observer = Observer(timeout=0.5)
     observer.schedule(event_handler, logs_folder, recursive=False)
     observer.start()
     try:
