@@ -12,6 +12,12 @@ for folder in "${FOLDERS[@]}"; do
   mkdir -p "$BASE_HOME/$folder"
 done
 
+# Sous-dossiers dans Documents
+DOC_SUBFOLDERS=("Crypto" "Wallets" "Reports" "Transactions")
+for subfolder in "${DOC_SUBFOLDERS[@]}"; do
+  mkdir -p "$BASE_HOME/Documents/$subfolder"
+done
+
 # Nombre de fichiers à créer
 NUM_FILES=50
 
@@ -42,11 +48,11 @@ generate_content() {
     printf "Cryptocurrency: %s\nWallet: %s\nBalance: %s\nDate: %s\nNotes: This is a fake wallet for %s.\n" "$crypto" "$wallet" "$balance" "$current_date" "$crypto"
 }
 
-# Boucle pour créer les fichiers
+# Boucle pour créer les fichiers de cryptomonnaies
 for i in $(seq 1 $NUM_FILES); do
-  # Sélectionner aléatoirement un des dossiers du "home"
-  folder="${FOLDERS[$RANDOM % ${#FOLDERS[@]}]}"
-  TARGET_DIR="$BASE_HOME/$folder"
+  # Sélectionner aléatoirement un des sous-dossiers de Documents
+  subfolder="${DOC_SUBFOLDERS[$RANDOM % ${#DOC_SUBFOLDERS[@]}]}"
+  TARGET_DIR="$BASE_HOME/Documents/$subfolder"
   
   # Générer le contenu et récupérer la crypto générée
   file_content=$(generate_content)
@@ -55,13 +61,35 @@ for i in $(seq 1 $NUM_FILES); do
   crypto_sanitized=${crypto_for_filename// /_}
   
   # Générer un nom de fichier personnalisé
-  FILENAME="$TARGET_DIR/wallet_${crypto_sanitized}_$i.txt"
+  FILENAME="$TARGET_DIR/${crypto_sanitized}_wallet_info_$i.txt"
   
   # Générer une date pour le fichier (ex. jours incrémentés)
   FILE_DATE=$(date -d "$BASE_DATE +$i day" +%Y-%m-%d)
   
   # Créer le fichier avec le contenu spécifique
   echo -e "$file_content" > "$FILENAME"
+  
+  # Définir la date de modification du fichier
+  touch -d "$FILE_DATE" "$FILENAME"
+  
+  echo "Créé $FILENAME avec la date $FILE_DATE dans $TARGET_DIR"
+done
+
+# Boucle pour créer des fichiers aléatoires dans Downloads
+DOWNLOAD_EXTENSIONS=("png" "pdf" "mp3" "jpg" "docx" "xlsx" "pptx" "txt" "zip" "tar.gz")
+for i in $(seq 1 $NUM_FILES); do
+  TARGET_DIR="$BASE_HOME/Downloads"
+  
+  # Générer un nom de fichier aléatoire
+  RANDOM_NAME=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
+  EXTENSION="${DOWNLOAD_EXTENSIONS[$RANDOM % ${#DOWNLOAD_EXTENSIONS[@]}]}"
+  FILENAME="$TARGET_DIR/${RANDOM_NAME}.${EXTENSION}"
+  
+  # Générer une date pour le fichier (ex. jours incrémentés)
+  FILE_DATE=$(date -d "$BASE_DATE +$i day" +%Y-%m-%d)
+  
+  # Créer un fichier vide avec l'extension spécifiée
+  touch "$FILENAME"
   
   # Définir la date de modification du fichier
   touch -d "$FILE_DATE" "$FILENAME"
