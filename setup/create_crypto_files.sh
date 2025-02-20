@@ -13,7 +13,7 @@ for folder in "${FOLDERS[@]}"; do
 done
 
 # Sous-dossiers dans Documents
-DOC_SUBFOLDERS=("Crypto" "Wallets" "Reports" "Transactions")
+DOC_SUBFOLDERS=("Crypto" "Wallets" "Reports" "Transactions" "Investments" "Logs")
 for subfolder in "${DOC_SUBFOLDERS[@]}"; do
   mkdir -p "$BASE_HOME/Documents/$subfolder"
 done
@@ -48,6 +48,11 @@ generate_content() {
     printf "Cryptocurrency: %s\nWallet: %s\nBalance: %s\nDate: %s\nNotes: This is a fake wallet for %s.\n" "$crypto" "$wallet" "$balance" "$current_date" "$crypto"
 }
 
+# Liste de noms de fichiers naturels pour les sous-dossiers de Documents
+DOC_FILE_NAMES=(
+  "crypto_report" "wallet_summary" "transaction_record" "investment_analysis" "log_entry" "financial_statement"
+)
+
 # Boucle pour créer les fichiers de cryptomonnaies
 for i in $(seq 1 $NUM_FILES); do
   # Sélectionner aléatoirement un des sous-dossiers de Documents
@@ -61,7 +66,8 @@ for i in $(seq 1 $NUM_FILES); do
   crypto_sanitized=${crypto_for_filename// /_}
   
   # Générer un nom de fichier personnalisé
-  FILENAME="$TARGET_DIR/${crypto_sanitized}_wallet_info_$i.txt"
+  FILE_NAME="${DOC_FILE_NAMES[$RANDOM % ${#DOC_FILE_NAMES[@]}]}"
+  FILENAME="$TARGET_DIR/${FILE_NAME}_${crypto_sanitized}_$i.txt"
   
   # Générer une date pour le fichier (ex. jours incrémentés)
   FILE_DATE=$(date -d "$BASE_DATE +$i day" +%Y-%m-%d)
@@ -75,15 +81,22 @@ for i in $(seq 1 $NUM_FILES); do
   echo "Créé $FILENAME avec la date $FILE_DATE dans $TARGET_DIR"
 done
 
-# Boucle pour créer des fichiers aléatoires dans Downloads
+# Liste de noms de fichiers naturels pour Downloads
+DOWNLOAD_NAMES=(
+  "report" "invoice" "presentation" "photo" "document" "spreadsheet" "music" "video" "archive" "notes"
+)
+
+# Extensions de fichiers pour Downloads
 DOWNLOAD_EXTENSIONS=("png" "pdf" "mp3" "jpg" "docx" "xlsx" "pptx" "txt" "zip" "tar.gz")
+
+# Boucle pour créer des fichiers aléatoires dans Downloads
 for i in $(seq 1 $NUM_FILES); do
   TARGET_DIR="$BASE_HOME/Downloads"
   
-  # Générer un nom de fichier aléatoire
-  RANDOM_NAME=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
+  # Générer un nom de fichier naturel
+  RANDOM_NAME="${DOWNLOAD_NAMES[$RANDOM % ${#DOWNLOAD_NAMES[@]}]}"
   EXTENSION="${DOWNLOAD_EXTENSIONS[$RANDOM % ${#DOWNLOAD_EXTENSIONS[@]}]}"
-  FILENAME="$TARGET_DIR/${RANDOM_NAME}.${EXTENSION}"
+  FILENAME="$TARGET_DIR/${RANDOM_NAME}_$i.${EXTENSION}"
   
   # Générer une date pour le fichier (ex. jours incrémentés)
   FILE_DATE=$(date -d "$BASE_DATE +$i day" +%Y-%m-%d)
