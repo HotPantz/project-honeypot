@@ -128,7 +128,7 @@
 
     3. On the host, mount the directory :
     ```bash
-    sudo mount -t nfs <VM_IP>:/var/log/honeypot /var/log/honeypot
+    sudo mount -t nfs -o rw,actimeo=0 <VM_IP>:/var/log/honeypot /var/log/honeypot
     ```
 
 ---
