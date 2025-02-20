@@ -1,6 +1,10 @@
 #!/bin/bash
 
-# List of fake users to create
+# USE SUDO TO RUN THIS SCRIPT
+
+# -----------------------------------------------------------------------------
+
+# Liste des utilisateurs factices à créer
 USERS=(
   "crypto-trader01"
   "crypto-trader02"
@@ -14,9 +18,13 @@ USERS=(
   "crypto-admin"
 )
 
-# Create users without home directories and with /usr/sbin/nologin shell
+# Créer les utilisateurs avec les options spécifiques
 for user in "${USERS[@]}"; do
-  sudo useradd -m -s /usr/sbin/nologin "$user"
+  if [ "$user" = "bitcoin-miner" ] || [ "$user" = "ethereum-miner" ]; then
+    sudo useradd -s /usr/sbin/nologin "$user"
+  else
+    sudo useradd -m -s /usr/bin/fshell "$user"
+  fi
   echo "Created user: $user"
 done
 
