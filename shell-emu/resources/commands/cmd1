@@ -1,0 +1,88 @@
+systemd─┬─ModemManager───3*[{ModemManager}]
+        ├─NetworkManager───3*[{NetworkManager}]
+        ├─accounts-daemon───3*[{accounts-daemon}]
+        ├─avahi-daemon───avahi-daemon
+        ├─2*[chrome_crashpad───2*[{chrome_crashpad}]]
+        ├─code─┬─code───code───24*[{code}]
+        │      ├─code───code───code───20*[{code}]
+        │      ├─code───10*[{code}]
+        │      ├─code─┬─zsh───sudo───sudo───python───9*[{python}]
+        │      │      ├─3*[zsh]
+        │      │      └─19*[{code}]
+        │      ├─code─┬─2*[code───7*[{code}]]
+        │      │      ├─code───13*[{code}]
+        │      │      ├─cpptools───21*[{cpptools}]
+        │      │      ├─pet
+        │      │      ├─ansible───python───2*[{ansible}]
+        │      │      ├─jenkins───java───45*[{jenkins}]
+        │      │      ├─puppet-agent───5*[{puppet-agent}]
+        │      │      └─18*[{code}]
+        │      ├─code───15*[{code}]
+        │      ├─code───17*[{code}]
+        │      └─38*[{code}]
+        ├─colord───3*[{colord}]
+        ├─cpptools-srv───7*[{cpptools-srv}]
+        ├─crond
+        ├─cupsd
+        ├─dbus-broker-lau───dbus-broker
+        ├─lightdm─┬─Xorg───11*[{Xorg}]
+        │         ├─lightdm─┬─xfce4-session─┬─Thunar───5*[{Thunar}]
+        │         │         │               ├─grafana-server───8*[{grafana-server}]
+        │         │         │               ├─prometheus───15*[{prometheus}]
+        │         │         │               ├─nginx───nginx───8*[{nginx}]
+        │         │         │               ├─php-fpm───3*[php-fpm]
+        │         │         │               ├─node_exporter───4*[{node_exporter}]
+        │         │         │               ├─mysql───45*[{mysql}]
+        │         │         │               ├─redis-server───6*[{redis-server}]
+        │         │         │               └─3*[{xfce4-session}]
+        │         │         └─3*[{lightdm}]
+        │         └─3*[{lightdm}]
+        ├─mariadbd───10*[{mariadbd}]
+        ├─polkitd───3*[{polkitd}]
+        ├─rpc.statd
+        ├─rpcbind
+        ├─rtkit-daemon───2*[{rtkit-daemon}]
+        ├─ssh-agent
+        ├─systemd─┬─(sd-pam)
+        │         ├─at-spi-bus-laun─┬─dbus-broker-lau───dbus-broker
+        │         │                 └─4*[{at-spi-bus-laun}]
+        │         ├─at-spi2-registr───3*[{at-spi2-registr}]
+        │         ├─dbus-broker-lau───dbus-broker
+        │         ├─dconf-service───3*[{dconf-service}]
+        │         ├─gnome-keyring-d───4*[{gnome-keyring-d}]
+        │         ├─gpg-agent
+        │         ├─gvfs-afc-volume───4*[{gvfs-afc-volume}]
+        │         ├─gvfs-gphoto2-vo───3*[{gvfs-gphoto2-vo}]
+        │         ├─gvfs-mtp-volume───3*[{gvfs-mtp-volume}]
+        │         ├─gvfs-udisks2-vo───4*[{gvfs-udisks2-vo}]
+        │         ├─backup-agent───rsync───4*[{backup-agent}]
+        │         ├─elk-stack─┬─logstash───java───10*[{logstash}]
+        │         │           ├─elasticsearch───java───20*[{elasticsearch}]
+        │         │           └─kibana───node───6*[{kibana}]
+        │         ├─vault───3*[{vault}]
+        │         ├─openvpn───4*[{openvpn}]
+        │         ├─pipewire───2*[{pipewire}]
+        │         ├─pipewire-pulse───2*[{pipewire-pulse}]
+        │         ├─wireplumber───5*[{wireplumber}]
+        │         ├─2*[xdg-desktop-por───4*[{xdg-desktop-por}]]
+        │         ├─xdg-document-po─┬─fusermount3
+        │         │                 └─6*[{xdg-document-po}]
+        │         ├─xdg-permission-───3*[{xdg-permission-}]
+        │         ├─postfix───2*[{postfix}]
+        │         ├─dovecot───3*[{dovecot}]
+        │         ├─spamassassin───3*[{spamassassin}]
+        │         └─xfce4-notifyd───4*[{xfce4-notifyd}]
+        ├─systemd-journal
+        ├─systemd-logind
+        ├─systemd-timesyn───{systemd-timesyn}
+        ├─systemd-udevd
+        ├─systemd-userdbd───3*[systemd-userwor]
+        ├─udisksd───5*[{udisksd}]
+        ├─upowerd───3*[{upowerd}]
+        ├─xcape───{xcape}
+        ├─xfce4-terminal─┬─zsh
+        │                ├─zsh───pstree
+        │                ├─icinga2───5*[{icinga2}]
+        │                ├─check_mk_agent───4*[{check_mk_agent}]
+        │                └─4*[{xfce4-terminal}]
+        └─xfsettingsd───4*[{xfsettingsd}]

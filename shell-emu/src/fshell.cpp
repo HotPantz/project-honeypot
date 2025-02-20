@@ -4,6 +4,9 @@
 #include "../headers/fshell.hpp"
 #include "../headers/shell_parser.hpp"
 #include <iostream>
+#include <algorithm>
+#include <vector>
+#include <string>
 #include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
@@ -17,11 +20,57 @@ std::vector<char*> args;
 std::string command, outputFile, inputFile, errFile;
 bool run_bg = false;
 
-// Function to execute commands
+//Command blacklist
+std::vector<std::string> blacklist = { "rm", "shutdown", "reboot", "poweroff", "init", "mkfs", "dd" };
+
 void doexec() {
+
+    switch(command){
+        case: "pstree":
+            std::ifstream fakePstree("/usr/share/fshell/cmd1");
+            if(!fakePstree){
+                //we won't do anything since we don't want to print it to the user :)
+                break;
+            } 
+            else{
+                std::string line;
+                while(std::getline(fakePstree, line))
+                {
+                    std::cout << line << std::endl;
+                }
+                fakePstree.close();
+            }
+            exit(EXIT_SUCCESS);
+            break;
+        case: "ps":
+            std::ifstream fakePs("/usr/share/fshell/cmd2");
+            if(!fakePstree){
+                break;
+            } 
+            else{
+            std::string line;
+                while(std::getline(fakePs, line)) 
+                {
+                    std::cout << line << std::endl;
+                }
+                fakePs.close();
+            }
+            exit(EXIT_SUCCESS);
+            break;
+        default:
+            break;
+    }
+    
     std::string token;
     int pipefd[2];
     args.push_back(const_cast<char*>(command.c_str()));
+
+    //checking blacklist
+    auto forbidden = std::find(blacklist.begin(), blacklist.end(), command);
+    if (forbidden != blacklist.end()) {
+        std::cerr << "Command \"" << command << "\" is not allowed!" << std::endl;
+        exit(EXIT_FAILURE);
+    }   
 
     while (head != nullptr) {
         token = pop(head);
@@ -60,6 +109,12 @@ void doexec() {
                     close(pipefd[0]);
                     close(pipefd[1]);
                     args.clear();
+                    //re-checking blacklist for piped commands
+                    forbidden = std::find(blacklist.begin(), blacklist.end(), command);
+                    if (forbidden != blacklist.end()) {
+                        std::cerr << "Command \"" << command << "\" is not allowed!" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
                     command = token;
                     break;
             }
