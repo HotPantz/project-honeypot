@@ -12,7 +12,7 @@ if [[ ! "$answer" =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
-read -p "Select installation type ([full] for full install with database and dashboard, [minimal] for shell and user setup only): " install_type
+read -p "Select installation type ([full] for full install with the database, [minimal] for shell and user setup only): " install_type
 if [[ "$install_type" != "full" && "$install_type" != "minimal" ]]; then
     echo "Invalid option. Aborting setup."
     exit 1
@@ -22,8 +22,8 @@ echo "Setting up Python virtual environment..."
 python3 -m venv .venv
 
 echo "Activating virtual environment and installing Python dependencies..."
-source .venv/bin/activate
-pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog pam passlib six
+. .venv/bin/activate
+./.venv/bin/pip install flask flask-socketio paramiko pymysql python-dotenv requests watchdog pam passlib six
 echo "Done."
 
 echo "Building the shell..."
@@ -51,3 +51,4 @@ cd ../../
 
 echo "Setup completed successfully"
 echo "Please keep the password secure"
+. .venv/bin/activate && exec $SHELL
