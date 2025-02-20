@@ -6,11 +6,12 @@
 #include <iostream>
 #include <cstring>
 #include <memory>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <cstdlib>
 #include <chrono>
 #include <cstring>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <pwd.h>
 
 
 auto sessionStart = std::chrono::steady_clock::now();
@@ -40,6 +41,13 @@ int main(int argc, char* argv[]) {
 
     //goto home dir  before starting the shell loop
     const char* homeEnv = std::getenv("HOME");
+    if(homeEnv == nullptr) {
+        struct passwd* pw = getpwuid(getuid());
+        if(pw != nullptr) {
+            homeEnv = pw->pw_dir;
+            setenv("HOME", homeEnv, 1); //set HOME if not already set
+        }
+    }
     if(homeEnv != nullptr)
     {
         if(chdir(homeEnv) != 0){

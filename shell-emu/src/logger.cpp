@@ -128,8 +128,10 @@ void initialize_session_log(const std::string& publicIP)
     oss << logDir << "session_" << publicIP << "_" 
         << std::put_time(localDate, "%Y-%m-%d_%H-%M-%S") << ".txt";
     sessionLogFilePath = oss.str();
-    
+
+    #ifdef DEBUG
     std::cerr << "[DEBUG] Constructed session log file path: " << sessionLogFilePath << std::endl;
+    #endif
     
     //Temporarily set umask to 0022 so that the file is created with 0644 permissions
     mode_t old_mask = umask(0022);
