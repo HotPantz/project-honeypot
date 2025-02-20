@@ -29,9 +29,11 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 
-DASHBOARD_URL = os.getenv('DASHBOARD_URL', 'http://localhost:5000') #default :localhost:5000
+DASHBOARD_URL = os.getenv('DASHBOARD_URL', 'http://localhost:5000') #default: localhost:5000
 
-if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME,DASHBOARD_URL]):
+LOG_DIR = os.getenv('LOG_DIR', '/var/log/analytics') #default: /var/log/analytics
+
+if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DASHBOARD_URL]):
     raise EnvironmentError("Missing required database environment variables")
 
 class Server(paramiko.ServerInterface):
@@ -194,6 +196,11 @@ def handle_connection(client, addr):
         except KeyError:
             user_home = os.path.expanduser("~")
         print(f"User home directory: {user_home}")
+
+        env = os.environ.copy()
+        env["SSH_CLIENT_IP"] = ip
+        env["LOG_DIR"] = LOG_DIR
+
 
         shell_path = os.path.abspath('/usr/bin/fshell')
         master_fd, slave_fd = pty.openpty()

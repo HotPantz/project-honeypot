@@ -11,7 +11,13 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 import re
 
-LOGS_FOLDER = "/var/log/honeypot/"
+#load .env
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../.env'))
+
+#read log directory from the environment variable (fallback to /var/log/analytics)
+LOGS_FOLDER = os.getenv("LOG_DIR", "/var/log/analytics")
+if LOGS_FOLDER and LOGS_FOLDER[-1] != '/':
+    LOGS_FOLDER += '/'
 
 app = Flask(__name__)
 socketio = SocketIO(app)

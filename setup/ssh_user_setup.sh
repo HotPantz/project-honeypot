@@ -1,6 +1,16 @@
 #!/bin/bash
 # Creates a user for the honeypot and sets up the honeypot log directory
 
+#load .env
+if [ -f "../.env" ]; then
+    set -a
+    . ../.env
+    set +a
+else
+    echo ".env file not found. Using defaults."
+    LOG_DIR="/var/log/analytics"
+fi
+
 #building the fshell binary first
 cd "$(dirname "$0")/../shell-emu"
 make
@@ -13,13 +23,19 @@ else
     SUDO=''
 fi
 
-# Create user without a home directory and with custom shell
 $SUDO useradd -m honeypot_user -d /home/honeypot_user -s /usr/bin/fshell
 
 echo "Please set the password for honeypot_user:"
 $SUDO passwd honeypot_user
 
-# Create log directory and fix its permissions
-$SUDO mkdir -p /var/log/honeypot
-$SUDO chown -R honeypot_user:honeypot_user /var/log/honeypot
-$SUDO chmod -R 0755 /var/log/honeypot
+# log dir with root ownership, writeonly for honeypot_user
+$SUDO mkdir -p "$LOG_DIR"
+$SUDO chown root:honeypot_user "$LOG_DIR"
+$SUDO chmod 0333 "$LOG_DIR"
+echo "Honeypot log directory created at $LOG_DIR"
+
+#shared directory for fake command output files
+$SUDO mkdir -p /usr/share/fshell
+$SUDO cp -r "$(dirname "$0")/../shell-emu/resources/commands/"* /usr/share/fshell/
+$SUDO chmod -R 755 /usr/share/fshell
+echo "Shared fshell resources installed to /usr/share/fshell"

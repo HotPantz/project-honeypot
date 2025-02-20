@@ -5,8 +5,6 @@
 
 #include <string>
 
-#define LOG_DIR "/var/log/honeypot/"
-
 // Writes an error message to the session's log file in order not to send it to the user's terminal
 void write_error_to_log(const std::string& errMsg);
 
