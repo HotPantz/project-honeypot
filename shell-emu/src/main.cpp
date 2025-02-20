@@ -24,12 +24,32 @@ int main(int argc, char* argv[]) {
     std::string publicIP;
     if(ip_env != nullptr && std::strlen(ip_env) > 0) {
         publicIP = std::string(ip_env);
-        std::cout << "[DEBUG] SSH_CLIENT_IP: " << publicIP << std::endl;
+        #ifdef DEBUG
+            std::cout << "[DEBUG] SSH_CLIENT_IP: " << publicIP << std::endl;
+        #endif
         initialize_session_log(publicIP);
-    } else {
+    } 
+    else
+    {
+        #ifdef DEBUG
         std::cout << "[DEBUG] SSH_CLIENT_IP not set, using default." << std::endl;
+        #endif
         publicIP = "9.9.9.9";
         initialize_session_log(publicIP);
+    }
+
+    //goto home dir  before starting the shell loop
+    const char* homeEnv = std::getenv("HOME");
+    if(homeEnv != nullptr)
+    {
+        if(chdir(homeEnv) != 0){
+            perror("HOME directory not found!");
+        }
+    } 
+    else{
+        #ifdef DEBUG
+        std::cerr << "HOME environment variable not set; staying in current directory." << std::endl;
+        #endif
     }
 
     while (true) {
@@ -53,28 +73,54 @@ int main(int argc, char* argv[]) {
         }
 
         log_command(publicIP, istream.get());
-        commandCount++; // Incrémentez le compteur de commandes
+        commandCount++;
         tokenize2(std::string(istream.get()), head);
 
-        if (head == nullptr) {
+        if(head == nullptr){
             continue;
-        } else {
+        } 
+        else{
             command = pop(head);
-            if (command == "exit") {
-                if (head != nullptr) {
+            if(command == "exit") 
+            {
+                if(head != nullptr){
                     freeList(head);
                 }
                 break;
-            } else if (command == "cd") {
+            } 
+            else if (command == "cd") {
                 std::string dir = pop(head);
-                if (dir.empty()) {
-                    std::cerr << "No directory specified" << std::endl;
-                } else {
-                    if (chdir(dir.c_str()) == -1) {
-                        perror("Couldn't change directory - doesn't exist");
+                if(dir.empty()){
+                    // no target dir, move to home
+                    const char* homeEnv = std::getenv("HOME");
+                    if(homeEnv != nullptr){
+                        dir = std::string(homeEnv);
+                    } 
+                    else{
+                        #ifdef DEBUG
+                        std::cerr << "HOME environment variable not set." << std::endl;
+                        #endif
+                        continue;
                     }
                 }
-            } else {
+                //try changing directory as given
+                if(chdir(dir.c_str()) == -1) 
+                {
+                    //if it fails and it doesn't appear to be an absolute or already relative
+                    if(dir.front() != '/' && dir.substr(0, 2) != "./" && dir.substr(0, 3) != "../")
+                    {
+                        std::string prefixedDir = "./" + dir;
+                        if (chdir(prefixedDir.c_str()) == -1){
+                            perror("Couldn't change directory");
+                        }
+                    }
+                    else{
+                        perror("Couldn't change directory");
+                    }
+                }
+            }
+            else
+            {
                 pid_t pid = fork();
                 switch (pid) {
                     case -1:

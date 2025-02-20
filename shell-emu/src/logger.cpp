@@ -82,25 +82,43 @@ void initialize_session_log(const std::string& publicIP)
      }
      if (logDir.back() != '/')
          logDir.push_back('/');
-
+    
+    #ifdef DEBUG
     std::cerr << "[DEBUG] Trying log directory: " << logDir << std::endl;
     std::cerr << "[DEBUG] Effective UID: " << getuid() << std::endl;
+    #endif
     
     struct stat info;
-    if (stat(logDir.c_str(), &info) != 0) {
-        if (mkdir(logDir.c_str(), 0777) != 0) {
+    if(stat(logDir.c_str(), &info) != 0)
+    {
+        if (mkdir(logDir.c_str(), 0777) != 0)
+        {
+            #ifdef DEBUG
             std::cerr << "[DEBUG] mkdir failed for " << logDir << ". Error: " 
                       << std::strerror(errno) << std::endl;
+            #endif
             return;
-        } else {
-            std::cerr << "[DEBUG] Successfully created " << logDir << std::endl;
         }
-    } else {
-        if (!S_ISDIR(info.st_mode)) {
+        else
+        {
+            #ifdef DEBUG
+            std::cerr << "[DEBUG] Successfully created " << logDir << std::endl;
+            #endif
+        }
+    } 
+    else{
+        if(!S_ISDIR(info.st_mode))
+        {
+            #ifdef DEBUG
             std::cerr << "[DEBUG] " << logDir << " exists but is not a directory." << std::endl;
+            #endif
             return;
-        } else {
+        }
+        else
+        {
+            #ifdef DEBUG
             std::cerr << "[DEBUG] Log directory " << logDir << " exists." << std::endl;
+            #endif
         }
     }
     
@@ -118,17 +136,26 @@ void initialize_session_log(const std::string& publicIP)
     sessionLogFile.open(sessionLogFilePath, std::ios::app);
     umask(old_mask);
     
-    if (!sessionLogFile.is_open()) {
+    if(!sessionLogFile.is_open()){
+        #ifdef DEBUG
         std::cerr << "[DEBUG] Failed to open session log file: " << sessionLogFilePath 
                   << ". Error: " << std::strerror(errno) << std::endl;
+        #endif
         return;
-    } else {
+    }
+    else
+    {
+        #ifdef DEBUG
         std::cerr << "[DEBUG] Successfully opened session log file: " << sessionLogFilePath << std::endl;
+        #endif
     }
     
-    if(chmod(sessionLogFilePath.c_str(), 0644) != 0) {
+    if(chmod(sessionLogFilePath.c_str(), 0644) != 0)
+    {
+        #ifdef DEBUG
         std::cerr << "[DEBUG] Failed to chmod session log file: " << sessionLogFilePath 
                   << ". Error: " << std::strerror(errno) << std::endl;
+        #endif
     }
 }
 
