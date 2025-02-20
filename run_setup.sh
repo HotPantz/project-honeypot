@@ -45,7 +45,7 @@ cd ..
 
 echo "Setting up SSH server RSA key..."
 cd ./ssh-server/key/
-sudo ssh-keygen -t rsa -b 2048 -f serv_rsa.key -N ""
+ssh-keygen -t rsa -b 2048 -f serv_rsa.key -N ""
 echo "Done."
 cd ../../
 

@@ -29,7 +29,7 @@
 ### Prerequisites
 1. #### Packets
 
-    - **C++ Compiler**: Ensure you have a C++ compiler installed (e.g., `g++`).
+    - **C++ Compiler**: Ensure you have a C++ compiler installed (e.g., `g++`). **Make sure you have the libcurl library installed !!**
     - **CMake**: Required for building the project.
     - **Python & Dependencies, Venv**: The server and dashboard are Python apps running in a Python Venv.
     - **VirtualBox** (optional): If you would like to run the app inside a VM for safety measures.
