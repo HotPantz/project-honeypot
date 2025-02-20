@@ -10,3 +10,4 @@ dashboard/honeypot_dashboard/venv
 .env
 *.pyc
 __pycache__/
+ssh-server/key/*
