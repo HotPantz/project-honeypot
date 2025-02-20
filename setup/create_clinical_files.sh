@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directory where files will be created
-TARGET_DIR="/home/station-clinique01/medical_records"
+TARGET_DIR="/home/station-clinique12/medical_records"
 
 # Create the target directory if it doesn't exist
 mkdir -p "$TARGET_DIR"
