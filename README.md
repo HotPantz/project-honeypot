@@ -45,6 +45,7 @@
     DB_PASSWORD=<PASSWORD>
     DB_NAME=<NAME>
     DASHBOARD_URL=http://<IP>:<PORT>
+    LOG_DIR=<BY DEFAULT : var/log/analytics>
     ```
     
     - **To connect to the DB (on a different host) from the VM** :
@@ -157,6 +158,8 @@ Alternatively, you can run the provided automated setup script, which runs all t
 
 ## Usage
 
+### Setting it up
+
 1. **Start the SSH Server**
 
     We need to run the server with sudo privileges to read ```/etc/shadow``` for password authentication with PAM:
@@ -184,6 +187,14 @@ Alternatively, you can run the provided automated setup script, which runs all t
 
     - Forward the SSH port (default is 22) from your router to the IP address of the virtual machine running the honeypot.
     - Ensure that the honeypot is accessible from the internet to attract potential attackers.
+
+### Adding fake-command-output files
+
+In the ```shell-emu/resources``` folder, we provide you with some sample fake outputs of common commands (pstree, tree, ip)
+They are supposed to be read from a shared location on the system, since we're executing the shell from ```/usr/bin```. You can 
+easily add new commands by altering the switch:case code inside ```shell-emu/src/fshell.cpp```, and add new commands to be
+fake-outputted. 
+Their names are vague on purpose, but you can name them anything you want provided you change the code accordingly.
 
 ## File Structure
 
