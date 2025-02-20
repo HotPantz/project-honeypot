@@ -202,7 +202,7 @@ def active_connections_count():
             sql = """
                 SELECT COUNT(DISTINCT ip) as count 
                 FROM connections 
-                WHERE status = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE);
+                WHERE status = 1;
             """
             cursor.execute(sql)
             result = cursor.fetchone()
@@ -218,7 +218,7 @@ def background_active_connections_update():
                 sql = """
                     SELECT COUNT(DISTINCT ip) as count 
                     FROM connections 
-                    WHERE status = 1 AND timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE);
+                    WHERE status = 1;
                 """
                 cursor.execute(sql)
                 result = cursor.fetchone()
@@ -228,7 +228,7 @@ def background_active_connections_update():
         finally:
             connection.close()
         socketio.emit('active_connections_update', {'count': count})
-        time.sleep(10) #update every 10 seconds
+        time.sleep(10)  # update every 10 seconds
 
 #status update receive from the ssh server for the live shell and shell detail pages
 @app.route('/notify_status', methods=['POST'])
