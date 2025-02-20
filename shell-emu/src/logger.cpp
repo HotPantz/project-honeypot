@@ -66,8 +66,23 @@ std::string get_public_ip()
 }
 
 // Initializes a unique log file for the session
-void initialize_session_log(const std::string& publicIP) {
-    std::string logDir = LOG_DIR; // static location in /var/log/honeypot/
+void initialize_session_log(const std::string& publicIP)
+{
+     
+    //reading LOG_DIR env var from "../../.env"
+     std::string logDir;
+     const char* env_log_dir = std::getenv("LOG_DIR");
+     if(env_log_dir != nullptr)
+     {
+         logDir = std::string(env_log_dir);
+     } 
+     else
+     {
+         logDir = "/var/log/analytics";
+     }
+     if (logDir.back() != '/')
+         logDir.push_back('/');
+
     std::cerr << "[DEBUG] Trying log directory: " << logDir << std::endl;
     std::cerr << "[DEBUG] Effective UID: " << getuid() << std::endl;
     
@@ -98,7 +113,7 @@ void initialize_session_log(const std::string& publicIP) {
     
     std::cerr << "[DEBUG] Constructed session log file path: " << sessionLogFilePath << std::endl;
     
-    // Temporarily set umask to 0022 so that the file is created with 0644 permissions
+    //Temporarily set umask to 0022 so that the file is created with 0644 permissions
     mode_t old_mask = umask(0022);
     sessionLogFile.open(sessionLogFilePath, std::ios::app);
     umask(old_mask);
@@ -111,15 +126,15 @@ void initialize_session_log(const std::string& publicIP) {
         std::cerr << "[DEBUG] Successfully opened session log file: " << sessionLogFilePath << std::endl;
     }
     
-    // Optionally, force the file permissions to 0644 if needed
-    if (chmod(sessionLogFilePath.c_str(), 0644) != 0) {
+    if(chmod(sessionLogFilePath.c_str(), 0644) != 0) {
         std::cerr << "[DEBUG] Failed to chmod session log file: " << sessionLogFilePath 
                   << ". Error: " << std::strerror(errno) << std::endl;
     }
 }
 
 // Logs a command for the session in a csv manner, with timestamp and user IP)
-void log_command(const std::string& userIp, const std::string& command) {
+void log_command(const std::string& userIp, const std::string& command)
+{
     if(sessionLogFile.is_open())
     {
         std::time_t now = std::time(nullptr);

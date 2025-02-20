@@ -1,0 +1,86 @@
+UID        PID   PPID  C STIME TTY          TIME CMD
+root         1      0  0 Feb20 ?        00:00:05 /sbin/init
+root       234      1  0 Feb20 ?        00:00:00 /usr/bin/ModemManager
+root       235      1  0 Feb20 ?        00:00:00 /usr/sbin/NetworkManager
+root       236      1  0 Feb20 ?        00:00:00 /usr/sbin/accounts-daemon
+root       237      1  0 Feb20 ?        00:00:00 /usr/sbin/avahi-daemon
+root       238      1  0 Feb20 ?        00:00:00 /opt/google/chrome_crashpad
+root       239      1  0 Feb20 ?        00:00:00 /opt/google/chrome_crashpad
+user       240      1  0 Feb20 ?        00:00:01 /usr/share/code/code
+user       241    240  0 Feb20 ?        00:00:00 /usr/share/code/code --type=renderer
+user       242    240  0 Feb20 ?        00:00:00 /usr/share/code/code --type=utility
+user       243    240  0 Feb20 ?        00:00:00 /bin/zsh -c "sudo sudo python"
+user       244    243  0 Feb20 ?        00:00:00 /bin/zsh
+user       245    243  0 Feb20 ?        00:00:00 /bin/zsh
+user       246    243  0 Feb20 ?        00:00:00 /bin/zsh
+user       247    240  0 Feb20 ?        00:00:00 /usr/share/code/code --type=child
+user       248    240  0 Feb20 ?        00:00:00 /usr/bin/cpptools
+user       249    240  0 Feb20 ?        00:00:00 /usr/bin/pet
+root       250    240  0 Feb20 ?        00:00:00 /usr/bin/ansible-playbook --check
+jenkins    251    240  0 Feb20 ?        00:00:05 java -jar /usr/share/jenkins/jenkins.war
+root       252    240  0 Feb20 ?        00:00:00 /opt/puppetlabs/bin/puppet agent --no-daemonize
+root       253      1  0 Feb20 ?        00:00:00 /usr/lib/colord/colord
+user       254      1  0 Feb20 ?        00:00:00 /usr/bin/cpptools-srv
+root       255      1  0 Feb20 ?        00:00:00 /usr/sbin/crond
+root       256      1  0 Feb20 ?        00:00:00 /usr/sbin/cupsd
+root       257      1  0 Feb20 ?        00:00:00 /usr/bin/dbus-broker-launch
+root       258      1  0 Feb20 ?        00:00:00 /usr/sbin/lightdm
+root       259    258  0 Feb20 vt7      00:00:05 /usr/bin/Xorg :0 -seat seat0 -auth /var/run/lightdm/root/:0 -nolisten tcp
+user       260    258  0 Feb20 ?        00:00:00 xfce4-session
+user       261    260  0 Feb20 ?        00:00:00 Thunar
+root       262    260  0 Feb20 ?        00:00:00 /usr/sbin/grafana-server
+root       263    260  0 Feb20 ?        00:00:00 /usr/bin/prometheus
+root       264    260  0 Feb20 ?        00:00:00 /usr/sbin/nginx
+www-data   265    260  0 Feb20 ?        00:00:00 php-fpm: pool www
+node       266    260  0 Feb20 ?        00:00:00 /usr/bin/node_exporter
+mysql      267    260  0 Feb20 ?        00:00:00 /usr/sbin/mysqld
+redis      268    260  0 Feb20 ?        00:00:00 /usr/bin/redis-server 127.0.0.1:6379
+user       269    260  0 Feb20 ?        00:00:00 xfce4-session
+mysql      270      1  0 Feb20 ?        00:00:00 /usr/sbin/mariadbd
+root       271      1  0 Feb20 ?        00:00:00 /usr/lib/polkit-1/polkitd --no-debug
+root       272      1  0 Feb20 ?        00:00:00 /usr/sbin/rpc.statd
+root       273      1  0 Feb20 ?        00:00:00 /sbin/rpcbind -w
+root       274      1  0 Feb20 ?        00:00:00 /usr/libexec/rtkit-daemon
+user       275      1  0 Feb20 ?        00:00:00 ssh-agent
+root       276      1  0 Feb20 ?        00:00:00 /usr/lib/systemd/systemd --user
+root       277    276  0 Feb20 ?        00:00:00 /usr/bin/at-spi-bus-launcher
+root       278    276  0 Feb20 ?        00:00:00 /usr/bin/at-spi2-registrar
+root       279    276  0 Feb20 ?        00:00:00 /usr/bin/dbus-broker-launch
+user       280    276  0 Feb20 ?        00:00:00 /usr/bin/dconf-service
+user       281    276  0 Feb20 ?        00:00:00 /usr/bin/gnome-keyring-daemon --daemonize --login
+user       282    276  0 Feb20 ?        00:00:00 /usr/bin/gpg-agent --daemon
+user       283    276  0 Feb20 ?        00:00:00 /usr/bin/gvfs-afc-volume
+user       284    276  0 Feb20 ?        00:00:00 /usr/bin/gvfs-gphoto2-volume-monitor
+user       285    276  0 Feb20 ?        00:00:00 /usr/bin/gvfs-mtp-volume-monitor
+user       286    276  0 Feb20 ?        00:00:00 /usr/bin/gvfs-udisks2-volume-monitor
+root       287    276  0 Feb20 ?        00:00:00 /usr/bin/rsync --daemon
+root       288    276  0 Feb20 ?        00:00:00 /usr/bin/logstash
+root       289    288  0 Feb20 ?        00:00:00 java -jar /usr/share/logstash/logstash.jar
+elastic    290    288  0 Feb20 ?        00:00:00 /usr/share/elasticsearch/bin/elasticsearch
+kibana     291    288  0 Feb20 ?        00:00:00 /usr/share/kibana/bin/kibana
+root       292    276  0 Feb20 ?        00:00:00 /usr/bin/vault server -config=/etc/vault/config.hcl
+root       293    276  0 Feb20 ?        00:00:00 /usr/sbin/openvpn --config /etc/openvpn/server.conf
+user       294    276  0 Feb20 ?        00:00:00 /usr/bin/pipewire
+user       295    276  0 Feb20 ?        00:00:00 /usr/bin/pipewire-pulse
+user       296    276  0 Feb20 ?        00:00:00 /usr/bin/wireplumber
+user       297    276  0 Feb20 ?        00:00:00 /usr/bin/xdg-desktop-portal
+user       298    276  0 Feb20 ?        00:00:00 /usr/bin/xdg-document-portal
+user       299    276  0 Feb20 ?        00:00:00 /usr/bin/xdg-permission-portal
+postfix    300    276  0 Feb20 ?        00:00:00 /usr/sbin/postfix start
+dovecot   301    276  0 Feb20 ?        00:00:00 /usr/sbin/dovecot
+spam       302    276  0 Feb20 ?        00:00:00 /usr/sbin/spamassassin --lint
+user       303    276  0 Feb20 ?        00:00:00 /usr/bin/xfce4-notifyd
+root       304      1  0 Feb20 ?        00:00:00 /usr/lib/systemd/systemd-journald
+root       305      1  0 Feb20 ?        00:00:00 /usr/lib/systemd/systemd-logind
+root       306      1  0 Feb20 ?        00:00:00 /usr/lib/systemd/systemd-timesyncd
+root       307      1  0 Feb20 ?        00:00:00 /usr/lib/systemd/systemd-udevd
+root       308      1  0 Feb20 ?        00:00:00 /usr/lib/systemd/systemd-userdbd
+root       309      1  0 Feb20 ?        00:00:00 /usr/lib/udisks2/udisksd
+root       310      1  0 Feb20 ?        00:00:00 /usr/sbin/upowerd
+root       311      1  0 Feb20 ?        00:00:00 /usr/bin/xcape
+user       312      1  0 Feb20 ?        00:00:00 xfce4-terminal
+user       313    312  0 Feb20 ?        00:00:00 /bin/zsh
+nagios     314    312  0 Feb20 ?        00:00:00 /usr/sbin/icinga2
+root       315    312  0 Feb20 ?        00:00:00 /usr/bin/check_mk_agent
+user       316    312  0 Feb20 ?        00:00:00 xfce4-terminal
+user       317      1  0 Feb20 ?        00:00:00 /usr/bin/xfsettingsd
