@@ -1,18 +1,24 @@
 #!/bin/bash
 
-# Directory where files will be created
-TARGET_DIR="/home/admin"
+# UTILISER SUDO POUR EXÉCUTER CE SCRIPT
 
-# Create the target directory if it doesn't exist
-mkdir -p "$TARGET_DIR"
+# -----------------------------------------------------------------------------
+# Répertoire de base
+BASE_HOME="/home/admin"
 
-# Number of files to create
+# Création de plusieurs dossiers types dans un vrai home
+FOLDERS=("Documents" "Downloads" "Music" "Pictures" "Videos")
+for folder in "${FOLDERS[@]}"; do
+  mkdir -p "$BASE_HOME/$folder"
+done
+
+# Nombre de fichiers à créer
 NUM_FILES=50
 
-# Base date for file timestamps (e.g., starting from today)
+# Date de base pour les timestamps (ex. à partir d'aujourd'hui)
 BASE_DATE=$(date +%Y-%m-%d)
 
-# Arrays of sample data
+# Tableaux de données d'exemple
 CRYPTO_NAMES=(
   "Bitcoin" "Ethereum" "Ripple" "Litecoin" "Cardano" "Polkadot" "Stellar" "Chainlink" "Binance Coin" "Tether"
 )
@@ -21,35 +27,46 @@ WALLETS=(
   "BTC Wallet" "ETH Wallet" "XRP Wallet" "LTC Wallet" "ADA Wallet" "DOT Wallet" "XLM Wallet" "LINK Wallet" "BNB Wallet" "USDT Wallet"
 )
 
-# Function to generate random content for a file
+# Fonction pour générer le contenu d'un fichier
 generate_content() {
-    local crypto=${CRYPTO_NAMES[$RANDOM % ${#CRYPTO_NAMES[@]}]}
-    local wallet=${WALLETS[$RANDOM % ${#WALLETS[@]}]}
-    local balance=$(shuf -i 1-1000 -n 1)
-    local date=$(date +%Y-%m-%d)
+    local crypto="${CRYPTO_NAMES[$RANDOM % ${#CRYPTO_NAMES[@]}]}"
+    local wallet="${WALLETS[$RANDOM % ${#WALLETS[@]}]}"
+    local balance
+    balance=$(shuf -i 1-1000 -n 1)
+    local current_date
+    current_date=$(date +%Y-%m-%d)
     
-    echo "Cryptocurrency: $crypto"
-    echo "Wallet: $wallet"
-    echo "Balance: $balance"
-    echo "Date: $date"
-    echo "Notes: This is a fake wallet for $crypto."
+    # Exporter le nom de crypto pour utilisation dans le nom du fichier
+    GENERATED_CRYPTO="$crypto"
+    
+    printf "Cryptocurrency: %s\nWallet: %s\nBalance: %s\nDate: %s\nNotes: This is a fake wallet for %s.\n" "$crypto" "$wallet" "$balance" "$current_date" "$crypto"
 }
 
-# Loop to create files
+# Boucle pour créer les fichiers
 for i in $(seq 1 $NUM_FILES); do
-  # Generate a filename with a specific pattern
-  FILENAME="$TARGET_DIR/wallet_info_$i.txt"
+  # Sélectionner aléatoirement un des dossiers du "home"
+  folder="${FOLDERS[$RANDOM % ${#FOLDERS[@]}]}"
+  TARGET_DIR="$BASE_HOME/$folder"
   
-  # Generate a date for the file (e.g., incrementing days)
+  # Générer le contenu et récupérer la crypto générée
+  file_content=$(generate_content)
+  crypto_for_filename=$GENERATED_CRYPTO
+  # Remplacer les espaces par des underscores dans le nom de crypto pour le nom du fichier
+  crypto_sanitized=${crypto_for_filename// /_}
+  
+  # Générer un nom de fichier personnalisé
+  FILENAME="$TARGET_DIR/wallet_${crypto_sanitized}_$i.txt"
+  
+  # Générer une date pour le fichier (ex. jours incrémentés)
   FILE_DATE=$(date -d "$BASE_DATE +$i day" +%Y-%m-%d)
   
-  # Create the file with specific content
-  generate_content > "$FILENAME"
+  # Créer le fichier avec le contenu spécifique
+  echo -e "$file_content" > "$FILENAME"
   
-  # Set the file's modification time to the generated date
+  # Définir la date de modification du fichier
   touch -d "$FILE_DATE" "$FILENAME"
   
-  echo "Created $FILENAME with date $FILE_DATE in $TARGET_DIR"
+  echo "Créé $FILENAME avec la date $FILE_DATE dans $TARGET_DIR"
 done
 
-echo "All files created successfully."
+echo "Tous les fichiers ont été créés avec succès."

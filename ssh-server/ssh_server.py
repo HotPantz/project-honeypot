@@ -51,7 +51,7 @@ class Server(paramiko.ServerInterface):
         # Log each login attempt.
         log_login_attempt(self.ip, username, password)
         # we use a custom PAM service set up with "pam_service_setup.sh"
-        if self.pam_auth.authenticate(username, password, service='honeypot'):
+        if self.pam_auth.authenticate(username, password, service='admin'):
             print(f"PAM authentication successful for user: {username}")
             return paramiko.AUTH_SUCCESSFUL
         else:
@@ -137,15 +137,28 @@ def log_login_attempt(ip, username, password):
     finally:
         connection.close()
 
-def drop_privileges(uid_name='honeypot_user', gid_name='honeypot_user'):
+def drop_privileges(uid_name=None, gid_name=None):
     """Drop root privileges by switching to the specified non‑privileged user."""
     if os.getuid() != 0:
         return
+
+    if uid_name is None or gid_name is None:
+        # Try to find a non-root user
+        uid_name = 'nobody'
+        gid_name = 'nogroup'
+        try:
+            pwd.getpwnam('unknown_user')
+            uid_name = 'unknown_user'
+            gid_name = 'unknown_user'
+        except KeyError:
+            pass
+
     try:
         running_uid = pwd.getpwnam(uid_name).pw_uid
         running_gid = grp.getgrnam(gid_name).gr_gid
     except KeyError as e:
         raise Exception(f"User or group {uid_name} not found: {e}")
+
     # Drop group privileges.
     os.setgid(running_gid)
     # Drop supplementary groups.
@@ -334,7 +347,7 @@ def start_ssh_server():
                 # In child process.
                 server_socket.close()  # Child doesn't need the main server socket.
                 try:
-                    drop_privileges(uid_name='honeypot_user', gid_name='honeypot_user')
+                    drop_privileges()
                     handle_connection(client, addr)
                 finally:
                     client.close()

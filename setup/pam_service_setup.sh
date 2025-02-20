@@ -1,7 +1,7 @@
 #!/bin/bash
 # Creates /etc/pam.d/honeypot with config
 
-PAM_FILE="/etc/pam.d/honeypot"
+PAM_FILE="/etc/pam.d/admin"
 
 sudo tee "$PAM_FILE" > /dev/null <<EOF
 auth      required      pam_unix.so try_first_pass

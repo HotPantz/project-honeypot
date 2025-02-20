@@ -23,14 +23,14 @@ else
     SUDO=''
 fi
 
-$SUDO useradd -m honeypot_user -d /home/honeypot_user -s /usr/bin/fshell
+$SUDO useradd -m admin -d /home/admin -s /usr/bin/fshell
 
-echo "Please set the password for honeypot_user:"
-$SUDO passwd honeypot_user
+echo "Please set the password for admin:"
+$SUDO passwd admin
 
-# log dir with root ownership, writeonly for honeypot_user
+# log dir with root ownership, writeonly for admin
 $SUDO mkdir -p "$LOG_DIR"
-$SUDO chown root:honeypot_user "$LOG_DIR"
+$SUDO chown root:admin "$LOG_DIR"
 $SUDO chmod 0333 "$LOG_DIR"
 echo "Honeypot log directory created at $LOG_DIR"
 
