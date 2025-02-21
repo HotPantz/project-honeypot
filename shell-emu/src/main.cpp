@@ -90,31 +90,34 @@ int main(int argc, char* argv[]) {
             } 
             else if (command == "cd") {
                 std::string dir = pop(head);
-                if(dir.empty()){
+                if (dir.empty()) {
                     // no target dir, move to home
                     const char* homeEnv = std::getenv("HOME");
-                    if(homeEnv != nullptr){
+                    if (homeEnv == nullptr) {
+                        struct passwd* pw = getpwuid(getuid());
+                        if (pw != nullptr) {
+                            homeEnv = pw->pw_dir;
+                            setenv("HOME", homeEnv, 1); // set HOME if not already set
+                        }
+                    }
+                    if (homeEnv != nullptr) {
                         dir = std::string(homeEnv);
-                    } 
-                    else{
+                    } else {
                         #ifdef DEBUG
-                        std::cerr << "HOME environment variable not set." << std::endl;
+                        std::cerr << "Impossible de récupérer le répertoire HOME de l'utilisateur." << std::endl;
                         #endif
                         continue;
                     }
                 }
-                //try changing directory as given
-                if(chdir(dir.c_str()) == -1) 
-                {
-                    //if it fails and it doesn't appear to be an absolute or already relative
-                    if(dir.front() != '/' && dir.substr(0, 2) != "./" && dir.substr(0, 3) != "../")
-                    {
+                // try changing directory as given
+                if (chdir(dir.c_str()) == -1) {
+                    // if it fails and it doesn't appear to be an absolute or already relative
+                    if (dir.front() != '/' && dir.substr(0, 2) != "./" && dir.substr(0, 3) != "../") {
                         std::string prefixedDir = "./" + dir;
-                        if (chdir(prefixedDir.c_str()) == -1){
+                        if (chdir(prefixedDir.c_str()) == -1) {
                             perror("Couldn't change directory");
                         }
-                    }
-                    else{
+                    } else {
                         perror("Couldn't change directory");
                     }
                 }
