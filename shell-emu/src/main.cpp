@@ -92,16 +92,9 @@ int main(int argc, char* argv[]) {
                 std::string dir = pop(head);
                 if (dir.empty()) {
                     // no target dir, move to home
-                    const char* homeEnv = std::getenv("HOME");
-                    if (homeEnv == nullptr) {
-                        struct passwd* pw = getpwuid(getuid());
-                        if (pw != nullptr) {
-                            homeEnv = pw->pw_dir;
-                            setenv("HOME", homeEnv, 1); // set HOME if not already set
-                        }
-                    }
-                    if (homeEnv != nullptr) {
-                        dir = std::string(homeEnv);
+                    struct passwd* pw = getpwuid(getuid());
+                    if (pw != nullptr) {
+                        dir = std::string(pw->pw_dir);
                     } else {
                         #ifdef DEBUG
                         std::cerr << "Impossible de récupérer le répertoire HOME de l'utilisateur." << std::endl;
@@ -121,7 +114,7 @@ int main(int argc, char* argv[]) {
                         perror("Couldn't change directory");
                     }
                 }
-            }
+        }
             else
             {
                 pid_t pid = fork();
