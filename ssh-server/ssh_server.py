@@ -165,6 +165,7 @@ def handle_connection(client, addr):
     server = Server()
     server.ip = addr[0]  # pass connection IP for logging
     try:
+        transport.banner_timeout = 30
         transport.start_server(server=server)
     except paramiko.SSHException:
         print('SSH negotiation failed.')
