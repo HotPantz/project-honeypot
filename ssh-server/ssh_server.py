@@ -13,6 +13,8 @@ import pty
 import requests
 import pwd, grp
 import pam
+import grp
+import getpass
 from dotenv import load_dotenv
 
 # For soft shutdown with CTRL+C
@@ -137,21 +139,16 @@ def log_login_attempt(ip, username, password):
     finally:
         connection.close()
 
+
 def drop_privileges(uid_name=None, gid_name=None):
     """Drop root privileges by switching to the specified non‑privileged user."""
     if os.getuid() != 0:
         return
 
     if uid_name is None or gid_name is None:
-        # Try to find a non-root user
-        uid_name = 'nobody'
-        gid_name = 'nogroup'
-        try:
-            pwd.getpwnam('unknown_user')
-            uid_name = 'unknown_user'
-            gid_name = 'unknown_user'
-        except KeyError:
-            pass
+        # Try to find the current user
+        uid_name = getpass.getuser()
+        gid_name = pwd.getpwnam(uid_name).pw_name
 
     try:
         running_uid = pwd.getpwnam(uid_name).pw_uid
@@ -167,6 +164,10 @@ def drop_privileges(uid_name=None, gid_name=None):
     os.setuid(running_uid)
     os.umask(0o077)
     print(f"Dropped privileges to user: {uid_name}")
+
+# Example usage
+if __name__ == "__main__":
+    drop_privileges()
 
 # Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
