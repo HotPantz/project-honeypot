@@ -153,9 +153,10 @@ def drop_privileges(uid_name, gid_name):
     # Drop supplementary groups.
     os.setgroups([])
     # Drop user privileges.
+    print(f"Dropping privileges to user: {uid_name}")
     os.setuid(running_uid)
     os.umask(0o077)
-    print(f"Dropped privileges to user: {uid_name}")
+    
 
 # Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
