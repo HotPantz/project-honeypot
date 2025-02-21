@@ -3,6 +3,8 @@ import os
 import random
 from datetime import datetime, timedelta
 import time
+import pwd
+import grp
 
 # Répertoire de base
 BASE_HOME = "/home/admin"
@@ -10,12 +12,16 @@ BASE_HOME = "/home/admin"
 # Dossiers principaux
 main_folders = ["Documents", "Downloads", "Music", "Pictures", "Videos"]
 for folder in main_folders:
-    os.makedirs(os.path.join(BASE_HOME, folder), exist_ok=True)
+    folder_path = os.path.join(BASE_HOME, folder)
+    os.makedirs(folder_path, exist_ok=True)
+    os.chown(folder_path, pwd.getpwnam("admin").pw_uid, grp.getgrnam("admin").gr_gid)
 
 # Sous-dossiers dans Documents
 doc_subfolders = ["Crypto", "Wallets", "Reports", "Transactions", "Investments", "Logs"]
 for subfolder in doc_subfolders:
-    os.makedirs(os.path.join(BASE_HOME, "Documents", subfolder), exist_ok=True)
+    subfolder_path = os.path.join(BASE_HOME, "Documents", subfolder)
+    os.makedirs(subfolder_path, exist_ok=True)
+    os.chown(subfolder_path, pwd.getpwnam("admin").pw_uid, grp.getgrnam("admin").gr_gid)
 
 # Nombre de fichiers à créer par section
 NUM_FILES = 50
@@ -64,6 +70,7 @@ for i in range(1, NUM_FILES+1):
     # Convertir la date en timestamp
     ts = time.mktime(datetime.strptime(file_date, "%Y-%m-%d").timetuple())
     os.utime(filepath, (ts, ts))
+    os.chown(filepath, pwd.getpwnam("admin").pw_uid, grp.getgrnam("admin").gr_gid)
     print(f"Créé {filepath} avec la date {file_date}")
 
 # Pour Downloads, association extension -> liste de noms naturels
@@ -96,6 +103,7 @@ for i in range(1, NUM_FILES+1):
     file_date = (base_date + timedelta(days=i)).strftime("%Y-%m-%d")
     ts = time.mktime(datetime.strptime(file_date, "%Y-%m-%d").timetuple())
     os.utime(filepath, (ts, ts))
+    os.chown(filepath, pwd.getpwnam("admin").pw_uid, grp.getgrnam("admin").gr_gid)
     print(f"Créé {filepath} avec la date {file_date}")
 
 print("Tous les fichiers ont été créés avec succès.")
