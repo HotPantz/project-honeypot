@@ -13,8 +13,6 @@ import pty
 import requests
 import pwd, grp
 import pam
-import grp
-import getpass
 from dotenv import load_dotenv
 
 # For soft shutdown with CTRL+C
@@ -53,7 +51,7 @@ class Server(paramiko.ServerInterface):
         # Log each login attempt.
         log_login_attempt(self.ip, username, password)
         # we use a custom PAM service set up with "pam_service_setup.sh"
-        if self.pam_auth.authenticate(username, password, service='admin'):
+        if self.pam_auth.authenticate(username, password, service='honeypot'):
             print(f"PAM authentication successful for user: {username}")
             return paramiko.AUTH_SUCCESSFUL
         else:
@@ -139,16 +137,10 @@ def log_login_attempt(ip, username, password):
     finally:
         connection.close()
 
-
-def drop_privileges(uid_name=None, gid_name=None):
+def drop_privileges(uid_name, gid_name):
     """Drop root privileges by switching to the specified non‑privileged user."""
     if os.getuid() != 0:
         return
-
-    if uid_name is None or gid_name is None:
-        # Try to find the current user
-        uid_name = getpass.getuser()
-        gid_name = pwd.getpwnam(uid_name).pw_name
 
     try:
         running_uid = pwd.getpwnam(uid_name).pw_uid
@@ -164,10 +156,6 @@ def drop_privileges(uid_name=None, gid_name=None):
     os.setuid(running_uid)
     os.umask(0o077)
     print(f"Dropped privileges to user: {uid_name}")
-
-# Example usage
-if __name__ == "__main__":
-    drop_privileges()
 
 # Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
@@ -187,7 +175,8 @@ def handle_connection(client, addr):
         return
 
     ip = addr[0]
-    print(f'Authenticated connection from {ip}')
+    username = transport.get_username()
+    print(f'Authenticated connection from {ip} as {username}')
 
     #emitting connection status updates to the frontend
     try:
@@ -206,7 +195,7 @@ def handle_connection(client, addr):
         threading.Thread(target=update_ip_geolocation, args=(ip,)).start()
 
         try:
-            user_home = pwd.getpwnam(transport.get_username()).pw_dir
+            user_home = pwd.getpwnam(username).pw_dir
         except KeyError:
             user_home = os.path.expanduser("~")
         print(f"User home directory: {user_home}")
@@ -214,7 +203,6 @@ def handle_connection(client, addr):
         env = os.environ.copy()
         env["SSH_CLIENT_IP"] = ip
         env["LOG_DIR"] = LOG_DIR
-
 
         shell_path = os.path.abspath('/usr/bin/fshell')
         master_fd, slave_fd = pty.openpty()
@@ -231,6 +219,7 @@ def handle_connection(client, addr):
             stderr=slave_fd,
             cwd=user_home,
             env=env,
+            preexec_fn=lambda: drop_privileges(username, username),
             close_fds=True
         )
         os.close(slave_fd)
@@ -333,8 +322,8 @@ def start_ssh_server():
     
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # For example, bind to port 2222 if you need a privileged port solution before forking
-    server_socket.bind(('0.0.0.0', 2222))
+    # For example, bind to port 22 if you need a privileged port solution before forking
+    server_socket.bind(('0.0.0.0', 22))
     server_socket.listen(100)
     print('Server started')
     
@@ -348,7 +337,6 @@ def start_ssh_server():
                 # In child process.
                 server_socket.close()  # Child doesn't need the main server socket.
                 try:
-                    drop_privileges()
                     handle_connection(client, addr)
                 finally:
                     client.close()
