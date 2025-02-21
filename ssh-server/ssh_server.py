@@ -153,7 +153,7 @@ def drop_privileges(uid_name, gid_name):
     # Drop supplementary groups.
     os.setgroups([])
     # Drop user privileges.
-    print(f"Dropping privileges to user: {uid_name}")
+    #print(f"Dropping privileges to user: {uid_name}")
     os.setuid(running_uid)
     os.umask(0o077)
     
