@@ -39,24 +39,16 @@ int main(int argc, char* argv[]) {
         initialize_session_log(publicIP);
     }
 
-    //goto home dir  before starting the shell loop
-    const char* homeEnv = std::getenv("HOME");
-    if(homeEnv == nullptr) {
-        struct passwd* pw = getpwuid(getuid());
-        if(pw != nullptr) {
-            homeEnv = pw->pw_dir;
-            setenv("HOME", homeEnv, 1); //set HOME if not already set
+    // Aller au répertoire home avant de démarrer la boucle du shell
+    struct passwd* pw = getpwuid(getuid());
+    if (pw != nullptr) {
+        const char* homeDir = pw->pw_dir;
+        if (chdir(homeDir) != 0) {
+            perror("Impossible de changer de répertoire vers HOME");
         }
-    }
-    if(homeEnv != nullptr)
-    {
-        if(chdir(homeEnv) != 0){
-            perror("HOME directory not found!");
-        }
-    } 
-    else{
+    } else {
         #ifdef DEBUG
-        std::cerr << "HOME environment variable not set; staying in current directory." << std::endl;
+        std::cerr << "Impossible de récupérer le répertoire HOME de l'utilisateur." << std::endl;
         #endif
     }
 
