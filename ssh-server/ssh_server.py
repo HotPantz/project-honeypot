@@ -49,17 +49,22 @@ class Server(paramiko.ServerInterface):
 
     def check_auth_password(self, username, password):
         # Log each login attempt.
-        log_login_attempt(self.ip, username, password)
+        auth_success = False  # Initialize to False
         # Redirect root to froot
         if username == "root":
             username = "froot"
+            
         # we use a custom PAM service set up with "pam_service_setup.sh"
         if self.pam_auth.authenticate(username, password, service='honeypot'):
             print(f"PAM authentication successful for user: {username}")
-            return paramiko.AUTH_SUCCESSFUL
+            auth_success = True  # Set to True if PAM authentication succeeds
+            result = paramiko.AUTH_SUCCESSFUL
         else:
             print(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
-            return paramiko.AUTH_FAILED
+            result = paramiko.AUTH_FAILED
+            
+        log_login_attempt(self.ip, username, password, auth_success)  # Log with success status
+        return result
 
     def get_allowed_auths(self, username):
         return 'password'
@@ -130,12 +135,12 @@ def log_command(connection_id, command):
     finally:
         connection.close()
 
-def log_login_attempt(ip, username, password):
+def log_login_attempt(ip, username, password, success):
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            sql = "INSERT INTO login_attempts (ip, username, password) VALUES (%s, %s, %s)"
-            cursor.execute(sql, (ip, username, password))
+            sql = "INSERT INTO login_attempts (ip, username, password, success) VALUES (%s, %s, %s, %s)"
+            cursor.execute(sql, (ip, username, password, success))
         connection.commit()
     finally:
         connection.close()
