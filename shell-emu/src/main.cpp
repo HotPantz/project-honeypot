@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
             // Modifier le prompt pour afficher root # si l'utilisateur est froot et dans /froot
             if (std::string(pw->pw_name) == "froot" && fullPath == "/froot") {
-                std::cout << "\033[1m" << baseDir << "\033[0m root # ";
+                std::cout << "\033[1mroot\033[0m # ";
             } else if (std::string(pw->pw_name) == "froot") {
                 std::cout << "\033[1m" << baseDir << "\033[0m # ";
             } else {
