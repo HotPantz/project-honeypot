@@ -17,6 +17,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
         integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .success {
+            color: green;
+        }
+
+        .failed {
+            color: red;
+        }
+    </style>
 </head>
 
 <body>
@@ -100,7 +109,8 @@
                                             <th data-column="username">Username <i class="fas fa-sort"></i></th>
                                             <th data-column="password">Password <i class="fas fa-sort"></i></th>
                                             <th data-column="attempt_time">Date <i class="fas fa-sort"></i></th>
-                                            <th data-column="success" data-sortable="false">Status</th>
+                                            <th data-column="success" data-sortable="false">Status <i
+                                                    class="fas fa-sort-down"></i></th>
                                         </tr>
                                     </thead>
                                     <tbody id="login-attempts-table-body">
@@ -308,7 +318,9 @@
                             row.append($('<td>').text(attempt.username));
                             row.append($('<td>').text(attempt.password));
                             row.append($('<td>').text(new Date(attempt.attempt_time).toLocaleString()));
-                            row.append($('<td>').text(attempt.success ? 'Success' : 'Failed'));
+                            let statusText = attempt.success ? 'Success' : 'Failed';
+                            let statusClass = attempt.success ? 'success' : 'failed';
+                            row.append($('<td>').html(`<span class="${statusClass}">${statusText}</span>`));
                             tableBody.append(row);
                         });
                     },
