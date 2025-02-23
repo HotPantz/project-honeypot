@@ -50,6 +50,7 @@ class Server(paramiko.ServerInterface):
     def check_auth_password(self, username, password):
         # Log each login attempt.
         auth_success = False  # Initialize to False
+        original_username = username  # Store the original username
         # Redirect root to froot
         if username == "root":
             username = "froot"
@@ -63,7 +64,7 @@ class Server(paramiko.ServerInterface):
             print(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
             result = paramiko.AUTH_FAILED
             
-        log_login_attempt(self.ip, username, password, auth_success)  # Log with success status
+        log_login_attempt(self.ip, original_username, password, auth_success)  # Log with success status, using original username
         return result
 
     def get_allowed_auths(self, username):
