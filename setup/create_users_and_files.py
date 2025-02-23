@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import time
 import pwd
 import grp
+import subprocess
 
 # Liste des utilisateurs pour lesquels créer des fichiers
 users = [
@@ -130,6 +131,53 @@ def create_files_for_user(user):
         print(f"Tous les fichiers ont été créés avec succès pour l'utilisateur {user}.")
     except KeyError:
         print(f"Utilisateur {user} non trouvé.")
+
+# Fonction pour créer des utilisateurs et définir les permissions
+def create_users_and_set_permissions():
+    # Liste des utilisateurs factices à créer
+    users = [
+        "crypto-trader01",
+        "crypto-trader02",
+        "wallet-manager",
+        "blockchain-analyst",
+        "crypto-investor",
+        "bitcoin-miner",
+        "ethereum-miner",
+        "crypto-researcher",
+        "crypto-dev",
+        "crypto-admin"
+    ]
+
+    # Créer les utilisateurs avec les options spécifiques
+    for user in users:
+        try:
+            pwd.getpwnam(user)
+            print(f"User {user} already exists")
+        except KeyError:
+            if user in ["bitcoin-miner", "ethereum-miner"]:
+                subprocess.run(["sudo", "useradd", "-s", "/usr/sbin/nologin", user])
+            else:
+                subprocess.run(["sudo", "useradd", "-m", "-s", "/usr/bin/fshell", user])
+            print(f"Created user: {user}")
+
+    # Ajouter l'utilisateur froot
+    try:
+        pwd.getpwnam("froot")
+        print("User froot already exists")
+    except KeyError:
+        subprocess.run(["sudo", "useradd", "-m", "-s", "/usr/bin/fshell", "froot"])
+        print("Created user: froot")
+
+    # Donner tous les droits à froot sur les répertoires personnels des utilisateurs factices
+    for user in users:
+        if user not in ["bitcoin-miner", "ethereum-miner"]:
+            subprocess.run(["sudo", "setfacl", "-m", "u:froot:rwx", f"/home/{user}"])
+            print(f"Granted all permissions to froot on /home/{user}")
+
+    print("All users created and permissions modified successfully.")
+
+# Créer des utilisateurs et définir les permissions
+create_users_and_set_permissions()
 
 # Créer des fichiers pour chaque utilisateur spécifié
 for user in users:
