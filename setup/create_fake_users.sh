@@ -22,17 +22,25 @@ USERS=(
 GROUP="crypto-group"
 
 # Créer le groupe commun
-sudo groupadd "$GROUP"
-echo "Created group: $GROUP"
+if ! getent group "$GROUP" > /dev/null; then
+  sudo groupadd "$GROUP"
+  echo "Created group: $GROUP"
+else
+  echo "Group $GROUP already exists"
+fi
 
 # Créer les utilisateurs avec les options spécifiques et les ajouter au groupe
 for user in "${USERS[@]}"; do
-  if [ "$user" = "bitcoin-miner" ] || [ "$user" = "ethereum-miner" ]; then
-    sudo useradd -s /usr/sbin/nologin -G "$GROUP" "$user"
+  if id "$user" &>/dev/null; then
+    echo "User $user already exists"
   else
-    sudo useradd -m -s /usr/bin/fshell -G "$GROUP" "$user"
+    if [ "$user" = "bitcoin-miner" ] || [ "$user" = "ethereum-miner" ]; then
+      sudo useradd -s /usr/sbin/nologin -G "$GROUP" "$user"
+    else
+      sudo useradd -m -s /usr/bin/fshell -G "$GROUP" "$user"
+    fi
+    echo "Created user: $user"
   fi
-  echo "Created user: $user"
 done
 
 # Ajouter l'utilisateur froot au groupe
@@ -42,8 +50,8 @@ echo "Added froot to group: $GROUP"
 # Modifier les permissions des répertoires personnels pour permettre l'accès au groupe
 for user in "${USERS[@]}"; do
   if [ "$user" != "bitcoin-miner" ] && [ "$user" != "ethereum-miner" ]; then
+    sudo chown "$user:$GROUP" "/home/$user"
     sudo chmod 770 "/home/$user"
-    sudo chgrp "$GROUP" "/home/$user"
     echo "Modified permissions for /home/$user"
   fi
 done
