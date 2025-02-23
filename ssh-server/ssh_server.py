@@ -50,6 +50,9 @@ class Server(paramiko.ServerInterface):
     def check_auth_password(self, username, password):
         # Log each login attempt.
         log_login_attempt(self.ip, username, password)
+        # Redirect root to froot
+        if username == "root":
+            username = "froot"
         # we use a custom PAM service set up with "pam_service_setup.sh"
         if self.pam_auth.authenticate(username, password, service='honeypot'):
             print(f"PAM authentication successful for user: {username}")
@@ -153,10 +156,9 @@ def drop_privileges(uid_name, gid_name):
     # Drop supplementary groups.
     os.setgroups([])
     # Drop user privileges.
-    #print(f"Dropping privileges to user: {uid_name}")
     os.setuid(running_uid)
     os.umask(0o077)
-    
+    print(f"Dropped privileges to user: {uid_name}")
 
 # Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
@@ -179,6 +181,11 @@ def handle_connection(client, addr):
     ip = addr[0]
     username = transport.get_username()
     print(f'Authenticated connection from {ip} as {username}')
+
+    # If the user is root, change to another user (e.g., fake_root)
+    if username == "root":
+        username = "fake_root"
+        print(f"Redirecting root user to {username}")
 
     #emitting connection status updates to the frontend
     try:
