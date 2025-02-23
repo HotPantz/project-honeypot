@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pwd.h> 
 
 // Global variables
 Node* head = nullptr;
