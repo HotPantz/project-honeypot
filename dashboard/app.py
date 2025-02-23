@@ -11,10 +11,10 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 import re
 
-#load .env
+# load .env
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../.env'))
 
-#read log directory from the environment variable (fallback to /var/log/analytics)
+# read log directory from the environment variable (fallback to /var/log/analytics)
 LOGS_FOLDER = os.getenv("LOG_DIR", "/var/log/analytics")
 if LOGS_FOLDER and LOGS_FOLDER[-1] != '/':
     LOGS_FOLDER += '/'
@@ -75,7 +75,7 @@ def live_shell():
         for shell in shells:
             if isinstance(shell['last_seen'], str):
                 shell['last_seen'] = datetime.strptime(shell['last_seen'], '%Y-%m-%d %H:%M:%S')
-            shell['online'] = shell['status']  # Utiliser le statut de la base de données
+            shell['online'] = shell['status']
             
             # Compter les commandes dans le dernier fichier de session
             logs_dir = LOGS_FOLDER
@@ -119,7 +119,7 @@ def shell_detail(ip):
         if result:
             if isinstance(result['last_seen'], str):
                 result['last_seen'] = datetime.strptime(result['last_seen'], '%Y-%m-%d %H:%M:%S')
-            result['online'] = result['status']  # Utiliser le statut de la base de données
+            result['online'] = result['status']
         return render_template('shell_detail.html', ip=ip, details=result)
     finally:
         connection.close()
@@ -235,14 +235,58 @@ def background_active_connections_update():
         finally:
             connection.close()
         socketio.emit('active_connections_update', {'count': count})
-        time.sleep(10)  # update every 10 seconds
+        time.sleep(10)
 
-#status update receive from the ssh server for the live shell and shell detail pages
-@app.route('/notify_status', methods=['POST'])
-def notify_status():
-    data = request.get_json()
-    socketio.emit('status_update', data)
-    return jsonify(success=True)
+# Route pour récupérer la liste des login attempts avec filtrage
+@app.route('/login_attempts')
+def login_attempts():
+    status_filter = request.args.get('status', 'all')
+    sort_by = request.args.get('sort_by')
+    sort_direction = request.args.get('sort_direction', 'asc')  # Default to ascending
+
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+                SELECT la.id, la.ip, la.username, la.password, la.attempt_time,
+                       ig.country, ig.city, la.success
+                FROM login_attempts la
+                LEFT JOIN ip_geolocations ig ON la.ip = ig.ip
+            """
+            conditions = []
+            params = []
+            if status_filter == 'success':
+                conditions.append("la.success = 1")
+            elif status_filter == 'failed':
+                conditions.append("la.success = 0")
+
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
+
+            # Add sorting
+            if sort_by:
+                # Map the data-column values to the actual column names
+                if sort_by == 'location':
+                    sort_by = 'ig.city'  # Or 'ig.country' or a combined expression
+                elif sort_by == 'status':
+                    sort_by = 'la.success'
+                else:
+                    sort_by = f'la.{sort_by}' # Use la. for other columns
+
+                sql += f" ORDER BY {sort_by} {sort_direction.upper()}"
+            else:
+                sql += " ORDER BY la.attempt_time DESC"  # Default sorting
+
+            cursor.execute(sql, params)
+            data = cursor.fetchall()
+
+            # Convert TINYINT to boolean for JSON serialization
+            for row in data:
+                row['success'] = bool(row['success'])
+
+        return jsonify(data)
+    finally:
+        connection.close()
 
 @app.route('/connections_over_time')
 def connections_over_time():
@@ -313,6 +357,17 @@ def stats():
             cursor.execute(popular_usernames_query)
             popular_usernames = cursor.fetchall()
 
+            # Récupérer les couples user:password les plus fréquents
+            popular_userpass_query = """
+                SELECT username, password, COUNT(*) as count
+                FROM login_attempts
+                GROUP BY username, password
+                ORDER BY count DESC
+                LIMIT 10;
+            """
+            cursor.execute(popular_userpass_query)
+            popular_userpass = cursor.fetchall()
+
             # Récupérer les informations géographiques des connexions
             geo_connections_query = """
                 SELECT ip, country, city, lat, lon
@@ -327,6 +382,7 @@ def stats():
                                avg_duration=avg_duration['avg_duration'],
                                popular_passwords=popular_passwords,
                                popular_usernames=popular_usernames,
+                               popular_userpass=popular_userpass,
                                geo_connections=geo_connections)
     finally:
         connection.close()
