@@ -249,16 +249,16 @@ def login_attempts():
         with connection.cursor() as cursor:
             sql = """
                 SELECT la.id, la.ip, la.username, la.password, la.attempt_time,
-                       ig.country, ig.city, la.success
+                       ig.country, ig.city, la.status
                 FROM login_attempts la
                 LEFT JOIN ip_geolocations ig ON la.ip = ig.ip
             """
             conditions = []
             params = []
             if status_filter == 'success':
-                conditions.append("la.success = 1")
+                conditions.append("la.status = 1")
             elif status_filter == 'failed':
-                conditions.append("la.success = 0")
+                conditions.append("la.status = 0")
 
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
@@ -269,7 +269,7 @@ def login_attempts():
                 if sort_by == 'location':
                     sort_by = 'ig.city'  # Or 'ig.country' or a combined expression
                 elif sort_by == 'status':
-                    sort_by = 'la.success'
+                    sort_by = 'la.status'
                 else:
                     sort_by = f'la.{sort_by}' # Use la. for other columns
 
@@ -282,7 +282,7 @@ def login_attempts():
 
             # Convert TINYINT to boolean for JSON serialization
             for row in data:
-                row['success'] = bool(row['success'])
+                row['status'] = bool(row['status'])
 
         return jsonify(data)
     finally:
