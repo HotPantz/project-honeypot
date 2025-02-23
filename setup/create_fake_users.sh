@@ -50,8 +50,8 @@ echo "Added froot to group: $GROUP"
 # Modifier les permissions des répertoires personnels pour permettre l'accès au groupe
 for user in "${USERS[@]}"; do
   if [ "$user" != "bitcoin-miner" ] && [ "$user" != "ethereum-miner" ]; then
-    sudo chown "$user:$GROUP" "/home/$user"
-    sudo chmod 770 "/home/$user"
+    sudo chown -R "$user:$GROUP" "/home/$user"
+    sudo chmod -R 770 "/home/$user"
     echo "Modified permissions for /home/$user"
   fi
 done
