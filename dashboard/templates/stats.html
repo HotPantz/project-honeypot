@@ -318,8 +318,8 @@
                             row.append($('<td>').text(attempt.username));
                             row.append($('<td>').text(attempt.password));
                             row.append($('<td>').text(new Date(attempt.attempt_time).toLocaleString()));
-                            let statusText = attempt.success ? 'Success' : 'Failed';
-                            let statusClass = attempt.success ? 'success' : 'failed';
+                            let statusText = attempt.status ? 'Success' : 'Failed';
+                            let statusClass = attempt.status ? 'success' : 'failed';
                             row.append($('<td>').html(`<span class="${statusClass}">${statusText}</span>`));
                             tableBody.append(row);
                         });
