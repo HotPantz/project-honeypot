@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <pwd.h> 
+#include <pwd.h>  // Inclure l'en-tête pour getpwuid et struct passwd
 
 // Global variables
 Node* head = nullptr;
