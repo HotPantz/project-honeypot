@@ -1,5 +1,3 @@
-// 12-11-2024 Selyan KABLIA created the main to make the logger, fshell, and shell parser work together
-
 #include "../headers/fshell.hpp"
 #include "../headers/shell_parser.hpp"
 #include "../headers/logger.hpp"
@@ -12,7 +10,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pwd.h>
-
 
 auto sessionStart = std::chrono::steady_clock::now();
 int commandCount = 0;
@@ -60,7 +57,13 @@ int main(int argc, char* argv[]) {
             std::string fullPath(cwd.get());
             size_t pos = fullPath.find_last_of('/');
             std::string baseDir = (pos == std::string::npos) ? fullPath : fullPath.substr(pos + 1);
-            std::cout << "\033[1m" << baseDir << "\033[0m $ ";
+
+            // Modifier le prompt pour afficher # si l'utilisateur est froot
+            if (std::string(pw->pw_name) == "froot") {
+                std::cout << "\033[1m" << baseDir << "\033[0m # ";
+            } else {
+                std::cout << "\033[1m" << baseDir << "\033[0m $ ";
+            }
         }
 
         if (fgets(istream.get(), MAX_INPUT_LEN, stdin) == nullptr) {
@@ -114,7 +117,15 @@ int main(int argc, char* argv[]) {
                         perror("Couldn't change directory");
                     }
                 }
-        }
+            }
+            else if (command == "whoami") {
+                // Modifier la commande whoami pour afficher root si l'utilisateur est froot
+                if (std::string(pw->pw_name) == "froot") {
+                    std::cout << "root" << std::endl;
+                } else {
+                    std::cout << pw->pw_name << std::endl;
+                }
+            }
             else
             {
                 pid_t pid = fork();

@@ -1,6 +1,3 @@
-// XX-XX-2023 Frederic MUSIAL made the base of the code
-// 12-11-2024 Selyan KABLIA separated the code with a main file and a header file
-
 #include "../headers/fshell.hpp"
 #include "../headers/shell_parser.hpp"
 #include <iostream>
@@ -26,6 +23,7 @@ std::vector<std::string> blacklist = { "rm", "shutdown", "reboot", "poweroff", "
 
 void doexec()
 {
+    struct passwd* pw = getpwuid(getuid());
 
     if(command == "pstree") 
     {
@@ -52,6 +50,15 @@ void doexec()
                 std::cout << line << std::endl;
             }
             fakePs.close();
+        }
+        exit(EXIT_SUCCESS);
+    }
+    else if (command == "whoami") {
+        // Modifier la commande whoami pour afficher root si l'utilisateur est froot
+        if (std::string(pw->pw_name) == "froot") {
+            std::cout << "root" << std::endl;
+        } else {
+            std::cout << pw->pw_name << std::endl;
         }
         exit(EXIT_SUCCESS);
     }
