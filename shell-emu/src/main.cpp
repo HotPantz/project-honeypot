@@ -107,6 +107,12 @@ int main(int argc, char* argv[]) {
                         continue;
                     }
                 }
+
+                // Rediriger les tentatives d'accès à /root vers /froot pour l'utilisateur froot
+                if (std::string(pw->pw_name) == "froot" && (dir == "/root" || dir == "root")) {
+                    dir = "/froot";
+                }
+
                 // try changing directory as given
                 if (chdir(dir.c_str()) == -1) {
                     // if it fails and it doesn't appear to be an absolute or already relative
