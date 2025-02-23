@@ -184,7 +184,7 @@ def handle_connection(client, addr):
 
     # If the user is root, change to another user (e.g., fake_root)
     if username == "root":
-        username = "fake_root"
+        username = "froot"
         print(f"Redirecting root user to {username}")
 
     #emitting connection status updates to the frontend

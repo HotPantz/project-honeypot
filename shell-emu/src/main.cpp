@@ -58,9 +58,9 @@ int main(int argc, char* argv[]) {
             size_t pos = fullPath.find_last_of('/');
             std::string baseDir = (pos == std::string::npos) ? fullPath : fullPath.substr(pos + 1);
 
-            // Modifier le prompt pour afficher # si l'utilisateur est froot
+            // Modifier le prompt pour afficher root # si l'utilisateur est froot
             if (std::string(pw->pw_name) == "froot") {
-                std::cout << "\033[1m" << baseDir << "\033[0m # ";
+                std::cout << "\033[1m" << baseDir << "\033[0m root # ";
             } else {
                 std::cout << "\033[1m" << baseDir << "\033[0m $ ";
             }
