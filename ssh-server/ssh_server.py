@@ -139,7 +139,7 @@ def log_login_attempt(ip, username, password, success):
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            sql = "INSERT INTO login_attempts (ip, username, password, success) VALUES (%s, %s, %s, %s)"
+            sql = "INSERT INTO login_attempts (ip, username, password, status) VALUES (%s, %s, %s, %s)"
             cursor.execute(sql, (ip, username, password, success))
         connection.commit()
     finally:
