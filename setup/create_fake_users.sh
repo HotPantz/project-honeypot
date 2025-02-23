@@ -2,6 +2,8 @@
 
 # USE SUDO TO RUN THIS SCRIPT
 
+# YOU NEED TO INSTALL 'acl' PACKAGE TO RUN THIS SCRIPT.  'sudo apt install acl'
+
 # -----------------------------------------------------------------------------
 
 # Liste des utilisateurs factices à créer
