@@ -97,6 +97,7 @@
     Run the setup scripts individually:
 
     ```bash
+    python create_users_and_files.py
     ./setup/mariadb_setup.sh
     ./setup/pam_service_setup.sh
     ./setup/ssh_user_setup.sh
@@ -123,13 +124,13 @@
     1. Edit ```/etc/exports``` and add this line (replace the IP with your host machine's IP address):
 
     ```bash
-    /var/log/honeypot <HOST_IP>(rw,sync,no_subtree_check,no_root_squash)
+    /var/log/analytics <HOST_IP>(rw,sync,no_subtree_check,all_squash,anonuid=<OWNER OF LOG_DIR ID>,anongid=<OWNER OF LOG_DIR ID>)
     ```
     2. Restart the NFS server
 
     3. On the host, mount the directory :
     ```bash
-    sudo mount -t nfs -o rw,actimeo=0 <VM_IP>:/var/log/honeypot /var/log/honeypot
+    sudo mount -t nfs -o rw,noac,actimeo=0,sync,soft,timeo=5 <VM_IP:/var/log/analytics /var/log/analytics
     ```
 
 ---

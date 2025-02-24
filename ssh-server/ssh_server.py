@@ -1,4 +1,5 @@
 import logging
+import argparse
 import select
 import socket
 import threading
@@ -15,23 +16,36 @@ import pwd, grp
 import pam
 from dotenv import load_dotenv
 
+# Configure logging to file with date and time.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    filename="server.log",    # Log file (relative or absolute path)
+    filemode="a"              # Append mode
+)
+
+# Optionally log to the console.
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S")
+console.setFormatter(formatter)
+logging.getLogger("").addHandler(console)
+
 # For soft shutdown with CTRL+C
 shutdown_requested = False
 
 # Load host key and environment variable
 HOST_KEY = paramiko.RSAKey(filename='key/serv_rsa.key')
-CONNECTIONS_FILE = 'connections.json'
 
-# Load .env file
 load_dotenv()
 DB_HOST = os.getenv('DB_HOST')
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 
-DASHBOARD_URL = os.getenv('DASHBOARD_URL', 'http://localhost:5000') #default: localhost:5000
-
-LOG_DIR = os.getenv('LOG_DIR', '/var/log/analytics') #default: /var/log/analytics
+DASHBOARD_URL = os.getenv('DASHBOARD_URL', 'http://localhost:5000')  # default: localhost:5000
+LOG_DIR = os.getenv('LOG_DIR', '/var/log/analytics')  # default: /var/log/analytics
 
 if not all([DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DASHBOARD_URL]):
     raise EnvironmentError("Missing required database environment variables")
@@ -48,23 +62,27 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        # Log each login attempt.
-        auth_success = False  # Initialize to False
-        original_username = username  # Store the original username
-        # Redirect root to froot
+        original_username = username  # Save the original username
         if username == "root":
             username = "froot"
-            
-        # we use a custom PAM service set up with "pam_service_setup.sh"
+            logging.info(f"Redirecting root user to {username}")
+
+        #if ALLOW_ROOT mode is enabled, automatically accept all root connections
+        if ALLOW_ROOT:
+            logging.info("ALLOW_ROOT mode enabled: accepting authentication for root for user: " + original_username)
+            log_login_attempt(self.ip, username, password, True)
+            logging.info(f"PAM authentication successful for user: {original_username}")
+            return paramiko.AUTH_SUCCESSFUL
+
+        # Use PAM authentication for non-root (or redirected root) users.
         if self.pam_auth.authenticate(username, password, service='honeypot'):
-            print(f"PAM authentication successful for user: {username}")
-            auth_success = True  # Set to True if PAM authentication succeeds
+            logging.info(f"PAM authentication successful for user: {username}")
             result = paramiko.AUTH_SUCCESSFUL
         else:
-            print(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
+            logging.error(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
             result = paramiko.AUTH_FAILED
-            
-        log_login_attempt(self.ip, original_username, password, auth_success)  # Log with success status, using original username
+
+        log_login_attempt(self.ip, original_username, password, result == paramiko.AUTH_SUCCESSFUL)
         return result
 
     def get_allowed_auths(self, username):
@@ -147,7 +165,7 @@ def log_login_attempt(ip, username, password, success):
         connection.close()
 
 def drop_privileges(uid_name, gid_name):
-    """Drop root privileges by switching to the specified non‑privileged user."""
+    #Drop root privileges by switching to the specified non‑privileged user
     if os.getuid() != 0:
         return
 
@@ -157,63 +175,60 @@ def drop_privileges(uid_name, gid_name):
     except KeyError as e:
         raise Exception(f"User or group {uid_name} not found: {e}")
 
-    # Drop group privileges.
+    #Drop group privileges
     os.setgid(running_gid)
-    # Drop supplementary groups.
+    #Drop supplementary groups
     os.setgroups([])
-    # Drop user privileges.
+    #Drop user privileges
     os.setuid(running_uid)
     os.umask(0o077)
-    #print(f"Dropped privileges to user: {uid_name}")
 
-# Starts fshell, logs the connection and its info, and logs the commands in the db
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
     transport.add_server_key(HOST_KEY)
     server = Server()
     server.ip = addr[0]  # pass connection IP for logging
     try:
-        transport.banner_timeout = 30
+        transport.banner_timeout = 50
         transport.start_server(server=server)
     except paramiko.SSHException:
-        print('SSH negotiation failed.')
+        logging.error('SSH negotiation failed.')
         return
 
     chan = transport.accept(20)
     if chan is None:
-        print('No channel.')
+        logging.error('No channel.')
         return
 
     ip = addr[0]
     username = transport.get_username()
-    print(f'Authenticated connection from {ip} as {username}')
+    logging.info(f'Authenticated connection from {ip} as {username}')
 
     # If the user is root, change to another user (e.g., fake_root)
     if username == "root":
         username = "froot"
-        print(f"Redirecting root user to {username}")
+        logging.info(f"Redirecting root user to {username}")
 
-    #emitting connection status updates to the frontend
+    # Emitting connection status updates to the frontend.
     try:
-        requests.post(f"{DASHBOARD_URL}/notify_status", json={'ip': ip, 'online': True},timeout=10)
+        requests.post(f"{DASHBOARD_URL}/notify_status", json={'ip': ip, 'online': True}, timeout=10)
     except Exception as e:
-        print("Error notifying status update:", e)
+        logging.error(f"Error notifying status update: {e}")
 
     pseudo_id = str(time.time())
     start_time = time.time()
     
     try:
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
         connection_id = log_connection(ip, pseudo_id, 0)
-        print(f"New connection logged with ID: {connection_id}")
+        logging.info(f"New connection logged with ID: {connection_id}")
         threading.Thread(target=update_ip_geolocation, args=(ip,)).start()
 
         try:
             user_home = pwd.getpwnam(username).pw_dir
         except KeyError:
             user_home = os.path.expanduser("~")
-        print(f"User home directory: {user_home}")
+        logging.info(f"User home directory: {user_home}")
 
         env = os.environ.copy()
         env["SSH_CLIENT_IP"] = ip
@@ -222,8 +237,7 @@ def handle_connection(client, addr):
         shell_path = os.path.abspath('/usr/bin/fshell')
         master_fd, slave_fd = pty.openpty()
 
-        #Passing the IP addr as a env. var because fshell is executed on the server 
-        #and if we'd be getting our own public IP addr if we tried to fetch it from the shell
+        # Passing the IP as an environment variable.
         env = os.environ.copy()
         env["SSH_CLIENT_IP"] = ip
 
@@ -271,12 +285,12 @@ def handle_connection(client, addr):
             if shell_process.poll() is not None:
                 break
     except Exception as e:
-        print(f'Connection error: {e}')
+        logging.error(f'Connection error: {e}')
     finally:
         if shell_process.poll() is None:
             shell_process.terminate()
         duration = int(time.time() - start_time)
-        print(f'Connection from {addr[0]} closed after {duration} seconds')
+        logging.info(f'Connection from {addr[0]} closed after {duration} seconds')
         update_connection_duration(connection_id, duration)
         update_connection_status(connection_id, False)  # offline
         chan.close()
@@ -284,12 +298,19 @@ def handle_connection(client, addr):
         try:
             requests.post(f"{DASHBOARD_URL}/notify_status", json={'ip': ip, 'online': False}, timeout=10)
         except Exception as e:
-            print("Error notifying status update:", e)
+            logging.error(f"Error notifying status update: {e}")
 
 def fetch_geolocation(ip):
     url = f"http://ip-api.com/json/{ip}"
     try:
         response = requests.get(url, timeout=5)
+        # Check rate limit headers from IP-API.
+        remaining = response.headers.get("X-Rl")
+        ttl = response.headers.get("X-Ttl")
+        if remaining is not None and int(remaining) == 0:
+            logging.info(f"Rate limit reached for IP-API. Please wait {ttl} seconds until the limit resets.")
+            return None
+
         data = response.json()
         if data.get('status') == 'success':
             return {
@@ -301,34 +322,47 @@ def fetch_geolocation(ip):
                 'lon': data.get('lon')
             }
     except Exception as e:
-        print("Error fetching geolocation:", e)
+        logging.error(f"Error fetching geolocation: {e}")
     return None
 
 def update_ip_geolocation(ip):
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
+            # Check if a record for this IP already exists.
             sql = "SELECT * FROM ip_geolocations WHERE ip = %s ORDER BY fetched_at DESC LIMIT 1"
             cursor.execute(sql, (ip,))
             result = cursor.fetchone()
-            if result:
+            if not result:
+                logging.info(f"Fetching geolocation for {ip} since no record exists.")
+                geo = fetch_geolocation(ip)
+                if geo:
+                    insert_sql = """
+                        INSERT INTO ip_geolocations (ip, country, country_code, region, city, lat, lon)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(insert_sql, (
+                        ip,
+                        geo.get('country'),
+                        geo.get('country_code'),
+                        geo.get('region'),
+                        geo.get('city'),
+                        geo.get('lat'),
+                        geo.get('lon')
+                    ))
+                    connection.commit()
+                    return geo
+                else:
+                    logging.error(f"Failed to fetch geolocation for {ip}.")
+                    return None
+            else:
                 return result
-            geo = fetch_geolocation(ip)
-            if geo:
-                insert_sql = """
-                    INSERT INTO ip_geolocations (ip, country, country_code, region, city, lat, lon)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(insert_sql, (ip, geo['country'], geo['country_code'], geo['region'], geo['city'], geo['lat'], geo['lon']))
-                connection.commit()
-                return geo
-        return None
     finally:
         connection.close()
 
 def signal_handler(signum, frame):
     global shutdown_requested
-    print("\nShutdown requested...")
+    logging.info("Shutdown requested...")
     shutdown_requested = True
 
 def start_ssh_server():
@@ -337,16 +371,16 @@ def start_ssh_server():
     
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # For example, bind to port 22 if you need a privileged port solution before forking
+    # For example, bind to port 22 if you need a privileged port solution before forking.
     server_socket.bind(('0.0.0.0', 22))
     server_socket.listen(100)
-    print('Server started')
+    logging.info('Server started')
     
     while not shutdown_requested:
         try:
-            server_socket.settimeout(1.25)  # check shutdown flag periodically
+            server_socket.settimeout(1.25)  # check shutdown flag periodically.
             client, addr = server_socket.accept()
-            print(f'Connection from {addr}')
+            logging.info(f'Connection from {addr}')
             pid = os.fork()
             if pid == 0:
                 # In child process.
@@ -358,19 +392,30 @@ def start_ssh_server():
                     os._exit(0)
             else:
                 # In parent process.
-                client.close()  # Close reference in parent.
-                # Optionally, reap zombie children.
+                client.close()
                 os.waitpid(-1, os.WNOHANG)
         except socket.timeout:
             continue
         except Exception as e:
-            print(f'Error: {e}')
+            logging.error(f'Error: {e}')
             break
     
-    print("Shutting down server...")
+    logging.info("Shutting down server...")
     server_socket.close()
-    print("Done!")
+    logging.info("Done!")
     sys.exit(0)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="SSH Server for Honeypot")
+    parser.add_argument("--allow-root", action="store_true",
+                        help="If provided, accept all root connections automatically")
+    args = parser.parse_args()
+
+    ALLOW_ROOT = args.allow_root
+
+    if ALLOW_ROOT:
+        logging.info("ALLOW_ROOT mode enabled: all root connections will be accepted.")
+    else:
+        logging.info("ALLOW_ROOT mode disabled: normal authentication applies.")
+
     start_ssh_server()

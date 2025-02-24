@@ -28,10 +28,10 @@ $SUDO useradd -m froot -d /home/froot -s /usr/bin/fshell
 echo "Please set the password for froot:"
 $SUDO passwd froot
 
-# log dir with root ownership, writeonly for froot
+# log dir with froot ownership
 $SUDO mkdir -p "$LOG_DIR"
-$SUDO chown root:froot "$LOG_DIR"
-$SUDO chmod 0333 "$LOG_DIR"
+$SUDO chown froot:froot "$LOG_DIR"
+$SUDO chmod 0775 "$LOG_DIR"
 echo "Honeypot log directory created at $LOG_DIR"
 
 #shared directory for fake command output files
