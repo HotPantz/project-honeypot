@@ -68,7 +68,7 @@ class Server(paramiko.ServerInterface):
             logging.info(f"Redirecting root user to {username}")
 
         #if ALLOW_ROOT mode is enabled, automatically accept all root connections
-        if ALLOW_ROOT:
+        if ALLOW_ROOT & original_username == "root":
             logging.info("ALLOW_ROOT mode enabled: accepting authentication for root for user: " + original_username)
             log_login_attempt(self.ip, original_username, password, True)
             logging.info(f"PAM authentication successful for user: {original_username}")
