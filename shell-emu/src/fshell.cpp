@@ -73,7 +73,13 @@ void doexec()
     if (forbidden != blacklist.end()) {
         std::cerr << "Command \"" << command << "\" is not allowed!" << std::endl;
         exit(EXIT_FAILURE);
-    }   
+    }
+    
+    //block commands with /sbin/ prefix
+    if(command.compare(0, 6, "/sbin/") == 0) {
+        std::cerr << "Command \"" << command << "\" is not allowed!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
     while (head != nullptr) {
         token = pop(head);
