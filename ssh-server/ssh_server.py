@@ -62,7 +62,7 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
     def check_auth_password(self, username, password):
-        original_username = username  # Save the original username
+        original_username = username #storing the original username for logging
         if username == "root":
             username = "froot"
             logging.info(f"Redirecting root user to {username}")
@@ -70,20 +70,20 @@ class Server(paramiko.ServerInterface):
         #if ALLOW_ROOT mode is enabled, automatically accept all root connections
         if ALLOW_ROOT:
             logging.info("ALLOW_ROOT mode enabled: accepting authentication for root for user: " + original_username)
-            log_login_attempt(self.ip, username, password, True)
+            log_login_attempt(self.ip, original_username, password, True)
             logging.info(f"PAM authentication successful for user: {original_username}")
             return paramiko.AUTH_SUCCESSFUL
-
-        # Use PAM authentication for non-root (or redirected root) users.
-        if self.pam_auth.authenticate(username, password, service='honeypot'):
-            logging.info(f"PAM authentication successful for user: {username}")
-            result = paramiko.AUTH_SUCCESSFUL
         else:
-            logging.error(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
-            result = paramiko.AUTH_FAILED
+            # Use PAM authentication for non-root (or redirected root) users.
+            if self.pam_auth.authenticate(username, password, service='honeypot'):
+                logging.info(f"PAM authentication successful for user: {username}")
+                result = paramiko.AUTH_SUCCESSFUL
+            else:
+                logging.error(f"PAM authentication failed for user: {username} - {self.pam_auth.reason}")
+                result = paramiko.AUTH_FAILED
 
-        log_login_attempt(self.ip, original_username, password, result == paramiko.AUTH_SUCCESSFUL)
-        return result
+            log_login_attempt(self.ip, username, password, result == paramiko.AUTH_SUCCESSFUL)
+            return result
 
     def get_allowed_auths(self, username):
         return 'password'
@@ -189,7 +189,7 @@ def handle_connection(client, addr):
     server = Server()
     server.ip = addr[0]  # pass connection IP for logging
     try:
-        transport.banner_timeout = 50
+        transport.banner_timeout = 150
         transport.start_server(server=server)
     except paramiko.SSHException:
         logging.error('SSH negotiation failed.')

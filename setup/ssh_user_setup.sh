@@ -23,7 +23,7 @@ else
     SUDO=''
 fi
 
-$SUDO useradd -m froot -d /home/froot -s /usr/bin/fshell
+$SUDO useradd -m froot -d /froot -s /usr/bin/fshell
 
 echo "Please set the password for froot:"
 $SUDO passwd froot
