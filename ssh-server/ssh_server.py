@@ -68,7 +68,7 @@ class Server(paramiko.ServerInterface):
             logging.info(f"Redirecting root user to {username}")
 
         #if ALLOW_ROOT mode is enabled, automatically accept all root connections
-        if ALLOW_ROOT & original_username == "root":
+        if ALLOW_ROOT and original_username == "root":
             logging.info("ALLOW_ROOT mode enabled: accepting authentication for root for user: " + original_username)
             log_login_attempt(self.ip, original_username, password, True)
             logging.info(f"PAM authentication successful for user: {original_username}")
@@ -187,12 +187,17 @@ def handle_connection(client, addr):
     transport = paramiko.Transport(client)
     transport.add_server_key(HOST_KEY)
     server = Server()
-    server.ip = addr[0]  # pass connection IP for logging
+    server.ip = addr[0]  #passing connection IP for logging
+    
+    transport.banner_timeout = 15 
+    transport.auth_timeout = 30
+    
     try:
-        transport.banner_timeout = 150
         transport.start_server(server=server)
-    except paramiko.SSHException:
-        logging.error('SSH negotiation failed.')
+    except (paramiko.SSHException, EOFError) as e:
+        logging.error(f'SSH negotiation failed: {str(e)}')
+        transport.close()
+        client.close()
         return
 
     chan = transport.accept(20)
@@ -222,7 +227,8 @@ def handle_connection(client, addr):
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         connection_id = log_connection(ip, pseudo_id, 0)
         logging.info(f"New connection logged with ID: {connection_id}")
-        threading.Thread(target=update_ip_geolocation, args=(ip,)).start()
+        #threading.Thread(target=update_ip_geolocation, args=(ip,)).start()
+        update_ip_geolocation(ip) #trying in the main thread
 
         try:
             user_home = pwd.getpwnam(username).pw_dir
@@ -333,23 +339,60 @@ def update_ip_geolocation(ip):
             sql = "SELECT * FROM ip_geolocations WHERE ip = %s ORDER BY fetched_at DESC LIMIT 1"
             cursor.execute(sql, (ip,))
             result = cursor.fetchone()
-            if not result:
-                logging.info(f"Fetching geolocation for {ip} since no record exists.")
+            
+            # Determine whether to fetch new geolocation data:
+            fetch_new = False
+            if result:
+                # If fetched_at is older than 1 day, update.
+                record_time = result.get('fetched_at')
+                if record_time is None or record_time < datetime.now() - timedelta(days=1):
+                    fetch_new = True
+                else:
+                    logging.info(f"Geolocation for {ip} is recent; not updating.")
+            else:
+                fetch_new = True
+
+            if fetch_new:
+                logging.info(f"Fetching geolocation for {ip}.")
                 geo = fetch_geolocation(ip)
                 if geo:
-                    insert_sql = """
-                        INSERT INTO ip_geolocations (ip, country, country_code, region, city, lat, lon)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """
-                    cursor.execute(insert_sql, (
-                        ip,
-                        geo.get('country'),
-                        geo.get('country_code'),
-                        geo.get('region'),
-                        geo.get('city'),
-                        geo.get('lat'),
-                        geo.get('lon')
-                    ))
+                    if result:
+                        # Update the existing record.
+                        update_sql = """
+                            UPDATE ip_geolocations 
+                            SET country = %s,
+                                country_code = %s,
+                                region = %s,
+                                city = %s,
+                                lat = %s,
+                                lon = %s,
+                                fetched_at = NOW()
+                            WHERE ip = %s
+                        """
+                        cursor.execute(update_sql, (
+                            geo.get('country'),
+                            geo.get('country_code'),
+                            geo.get('region'),
+                            geo.get('city'),
+                            geo.get('lat'),
+                            geo.get('lon'),
+                            ip
+                        ))
+                    else:
+                        # Insert a new record.
+                        insert_sql = """
+                            INSERT INTO ip_geolocations (ip, country, country_code, region, city, lat, lon)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """
+                        cursor.execute(insert_sql, (
+                            ip,
+                            geo.get('country'),
+                            geo.get('country_code'),
+                            geo.get('region'),
+                            geo.get('city'),
+                            geo.get('lat'),
+                            geo.get('lon')
+                        ))
                     connection.commit()
                     return geo
                 else:
