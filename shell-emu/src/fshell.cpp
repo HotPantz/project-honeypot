@@ -20,7 +20,7 @@ std::string command, outputFile, inputFile, errFile;
 bool run_bg = false;
 
 //Command blacklist
-std::vector<std::string> blacklist = { "rm", "shutdown", "reboot", "poweroff", "init", "mkfs", "dd", "nfs-server", "systemctl", "htop" };
+std::vector<std::string> blacklist = { "sudo", "rm", "shutdown", "reboot", "poweroff", "init", "mkfs", "dd", "nfs-server", "systemctl", "htop", "dc" };
 
 void doexec()
 {
