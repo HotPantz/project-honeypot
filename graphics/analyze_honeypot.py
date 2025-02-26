@@ -464,15 +464,11 @@ def subnet_chart():
     plt.savefig(f"{output_dir}/subnet_distribution.png", bbox_inches='tight')
     plt.close()
 
-def connection_status_chart():
-    if connection_df.empty or 'status' not in connection_df.columns:
-        print("No connection status data available")
-        return
     
-    plt.figure(figsize=(8, 6))
-    status_counts = connection_df['status'].value_counts()
+    # Create a new Series with readable labels
+    readable_status = pd.Series({status_labels[status]: count for status, count in status_counts.items()})
     
-    sns.barplot(x=status_counts.index, y=status_counts.values)
+    sns.barplot(x=readable_status.index, y=readable_status.values)
     plt.title('Connection Status Distribution', fontsize=16)
     plt.xlabel('Status', fontsize=14)
     plt.ylabel('Count', fontsize=14)
@@ -523,15 +519,647 @@ def connection_timeline():
     except Exception as e:
         print(f"Error in connection timeline: {str(e)}")
 
+def success_by_country():
+    if login_df.empty or geo_df.empty or 'success' not in login_df.columns:
+        print("Missing data for success by country analysis")
+        return
+    
+    try:
+        # Find IP column in geo data
+        ip_col = None
+        country_col = None
+        for col in geo_df.columns:
+            if 'ip' in col.lower():
+                ip_col = col
+            elif 'country' in col.lower():
+                country_col = col
+        
+        if ip_col is None or country_col is None:
+            print("Missing required columns in geo data")
+            return
+        
+        # Create a mapping of IP to country
+        ip_to_country = dict(zip(geo_df[ip_col], geo_df[country_col]))
+        
+        # Add country to login data
+        login_df['country'] = login_df['ip'].map(ip_to_country)
+        
+        # Filter out rows with missing country
+        valid_df = login_df.dropna(subset=['country'])
+        
+        if valid_df.empty:
+            print("No valid country data for success rate analysis")
+            return
+        
+        # Calculate success rate by country
+        success_by_country = valid_df.groupby('country')['success'].agg(['mean', 'count'])
+        success_by_country = success_by_country.sort_values('count', ascending=False).head(10)
+        success_by_country['mean'] = success_by_country['mean'] * 100  # Convert to percentage
+        
+        plt.figure(figsize=(12, 8))
+        ax = sns.barplot(x=success_by_country.index, y=success_by_country['mean'])
+        
+        # Add count annotations
+        for i, (_, row) in enumerate(success_by_country.iterrows()):
+            ax.text(i, row['mean'] + 1, f"n={row['count']}", ha='center')
+        
+        plt.title('Login Success Rate by Country (Top 10 by Attempt Count)', fontsize=16)
+        plt.xlabel('Country', fontsize=14)
+        plt.ylabel('Success Rate (%)', fontsize=14)
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/success_by_country.png", bbox_inches='tight')
+        plt.close()
+        print("Generated success by country chart")
+    except Exception as e:
+        print(f"Error generating success by country chart: {str(e)}")
+
+def geo_map_folium():
+    """Generate an interactive geographical map using Folium"""
+    if geo_df.empty:
+        print("No geo data available")
+        return
+    
+    # Look for latitude/longitude columns
+    lat_col = None
+    lon_col = None
+    country_col = None
+    ip_col = None
+    
+    for col in geo_df.columns:
+        if 'lat' in col.lower():
+            lat_col = col
+        elif 'lon' in col.lower() or 'lng' in col.lower():
+            lon_col = col
+        elif 'country' in col.lower():
+            country_col = col
+        elif 'ip' in col.lower():
+            ip_col = col
+    
+    if lat_col is None or lon_col is None:
+        print("Missing required geo coordinates")
+        return
+    
+    try:
+        import folium
+        from folium.plugins import MarkerCluster
+        
+        # Convert lat/lon to float and filter out invalid values
+        valid_geo = geo_df.copy()
+        valid_geo[lat_col] = pd.to_numeric(valid_geo[lat_col], errors='coerce')
+        valid_geo[lon_col] = pd.to_numeric(valid_geo[lon_col], errors='coerce')
+        valid_geo = valid_geo.dropna(subset=[lat_col, lon_col])
+        
+        if valid_geo.empty:
+            print("No valid geo coordinates found")
+            return
+        
+        # Create map centered at average coordinates
+        center_lat = valid_geo[lat_col].mean()
+        center_lon = valid_geo[lon_col].mean()
+        attack_map = folium.Map(location=[center_lat, center_lon], zoom_start=2)
+        
+        # Add marker cluster to improve performance with many points
+        marker_cluster = MarkerCluster().add_to(attack_map)
+        
+        # Count occurrences of each country
+        country_counts = valid_geo[country_col].value_counts() if country_col else {}
+        
+        # Add markers for each unique location
+        locations_added = set()
+        for _, row in valid_geo.iterrows():
+            lat = row[lat_col]
+            lon = row[lon_col]
+            
+            # Skip invalid coordinates
+            if abs(lat) > 90 or abs(lon) > 180:
+                continue
+                
+            # Create a unique location key to avoid too many overlapping points
+            location_key = f"{lat:.2f},{lon:.2f}"
+            if location_key in locations_added:
+                continue
+            locations_added.add(location_key)
+            
+            # Create popup content
+            popup_content = []
+            if country_col and row[country_col]:
+                country = row[country_col]
+                count = country_counts.get(country, 0)
+                popup_content.append(f"Country: {country} ({count} IPs)")
+            
+            if ip_col and row[ip_col]:
+                popup_content.append(f"Sample IP: {row[ip_col]}")
+                
+            popup_text = "<br>".join(popup_content) if popup_content else "Unknown location"
+            
+            # Add marker to cluster
+            folium.Marker(
+                location=[lat, lon],
+                popup=folium.Popup(popup_text, max_width=300),
+                icon=folium.Icon(color='red', icon='info-sign')
+            ).add_to(marker_cluster)
+        
+        # Save the map
+        map_file = f"{output_dir}/attack_map.html"
+        attack_map.save(map_file)
+        print(f"Generated interactive map: {map_file}")
+        
+        # Generate a static screenshot for the report
+        try:
+            import selenium
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+            import time
+            
+            print("Trying to create static image from interactive map...")
+            
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            
+            driver = webdriver.Chrome(options=chrome_options)
+            driver.set_window_size(1000, 800)
+            driver.get(f"file://{os.path.abspath(map_file)}")
+            time.sleep(3)  # Wait for map to load
+            
+            # Take a screenshot
+            static_map_file = f"{output_dir}/attack_map.png"
+            driver.save_screenshot(static_map_file)
+            driver.quit()
+            
+            print(f"Generated static map image: {static_map_file}")
+        except Exception as e:
+            print(f"Could not generate static map image: {str(e)}")
+            print("The interactive HTML map is still available.")
+        
+    except ImportError:
+        print("Folium library not available. Install with: pip install folium")
+    except Exception as e:
+        print(f"Error generating geo map: {str(e)}")
+
+def password_prefix_chart():
+    if login_df.empty or 'password' not in login_df.columns:
+        print("No password data available")
+        return
+    
+    try:
+        # Get the first 3 characters of each password
+        login_df['prefix'] = login_df['password'].astype(str).str[:3]
+        prefix_counts = login_df['prefix'].value_counts().head(15)
+        
+        plt.figure(figsize=(12, 8))
+        sns.barplot(x=prefix_counts.index, y=prefix_counts.values)
+        plt.title('Most Common Password Prefixes (First 3 Characters)', fontsize=16)
+        plt.xlabel('Password Prefix', fontsize=14)
+        plt.ylabel('Count', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/password_prefix.png", bbox_inches='tight')
+        plt.close()
+        print("Generated password prefix chart")
+    except Exception as e:
+        print(f"Error generating password prefix chart: {str(e)}")
+
+def ip_diversity_chart():
+    if login_df.empty or 'timestamp' not in login_df.columns or 'ip' not in login_df.columns:
+        print("No IP diversity data available")
+        return
+    
+    try:
+        # Convert timestamps to datetime
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'], errors='coerce')
+        valid_df = login_df.dropna(subset=['timestamp'])
+        
+        if valid_df.empty:
+            print("No valid timestamp data for IP diversity")
+            return
+        
+        # Group by date and count unique IPs
+        valid_df['date'] = valid_df['timestamp'].dt.date
+        ip_diversity = valid_df.groupby('date')['ip'].nunique()
+        
+        plt.figure(figsize=(12, 6))
+        ip_diversity.plot(kind='line', marker='o', color='purple')
+        plt.title('Unique IP Addresses per Day', fontsize=16)
+        plt.xlabel('Date', fontsize=14)
+        plt.ylabel('Number of Unique IPs', fontsize=14)
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/ip_diversity.png", bbox_inches='tight')
+        plt.close()
+        print("Generated IP diversity chart")
+    except Exception as e:
+        print(f"Error generating IP diversity chart: {str(e)}")
+
+def credentials_heatmap():
+    if login_df.empty or 'username' not in login_df.columns or 'password' not in login_df.columns:
+        print("No credentials data available")
+        return
+    
+    try:
+        # Get top 10 usernames and passwords
+        top_usernames = login_df['username'].value_counts().head(8).index
+        top_passwords = login_df['password'].value_counts().head(8).index
+        
+        # Filter data to include only top credentials
+        filtered_df = login_df[login_df['username'].isin(top_usernames) & login_df['password'].isin(top_passwords)]
+        
+        # Create cross-tabulation
+        heatmap_data = pd.crosstab(filtered_df['username'], filtered_df['password'])
+        
+        plt.figure(figsize=(12, 10))
+        sns.heatmap(heatmap_data, cmap="YlGnBu", annot=True, fmt="d", linewidths=.5)
+        plt.title('Frequency of Username/Password Combinations', fontsize=16)
+        plt.xlabel('Password', fontsize=14)
+        plt.ylabel('Username', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/credentials_heatmap.png", bbox_inches='tight')
+        plt.close()
+        print("Generated credentials heatmap")
+    except Exception as e:
+        print(f"Error generating credentials heatmap: {str(e)}")
+
+def login_time_heatmap():
+    if login_df.empty or 'timestamp' not in login_df.columns:
+        print("No timestamp data available for heatmap")
+        return
+    
+    try:
+        # Convert timestamps to datetime
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'], errors='coerce')
+        valid_df = login_df.dropna(subset=['timestamp'])
+        
+        if valid_df.empty:
+            print("No valid timestamp data for heatmap")
+            return
+        
+        # Extract hour and day of week
+        valid_df['hour'] = valid_df['timestamp'].dt.hour
+        valid_df['day_of_week'] = valid_df['timestamp'].dt.day_name()
+        
+        # Order days of week properly
+        day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        
+        # Create pivot table
+        heatmap_data = pd.crosstab(valid_df['day_of_week'], valid_df['hour'])
+        heatmap_data = heatmap_data.reindex(day_order)
+        
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(heatmap_data, cmap="YlOrRd", annot=True, fmt="d", cbar_kws={'label': 'Number of Attempts'})
+        plt.title('Login Attempts by Day of Week and Hour', fontsize=16)
+        plt.xlabel('Hour of Day (24h)', fontsize=14)
+        plt.ylabel('Day of Week', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/time_heatmap.png", bbox_inches='tight')
+        plt.close()
+        print("Generated time heatmap")
+    except Exception as e:
+        print(f"Error generating time heatmap: {str(e)}")
+
+def password_pie_chart():
+    """Generate a pie chart of the most commonly used passwords"""
+    if login_df.empty or 'password' not in login_df.columns:
+        print("No password data available")
+        return
+    
+    plt.figure(figsize=(10, 8))
+    password_counts = login_df['password'].value_counts()
+    
+    # Check if we have enough data
+    if len(password_counts) == 0:
+        print("No password data found")
+        return
+    
+    # Limit to top passwords and group the rest as "Other"
+    if len(password_counts) > 9:
+        password_counts_top = password_counts.head(9)  # Get top 9
+        other_count = password_counts.sum() - password_counts_top.sum()
+        password_counts_plot = pd.concat([password_counts_top, pd.Series([other_count], index=['Other'])])
+        
+        # Create color map with a distinct color for "Other"
+        colors = plt.cm.tab10(range(9))  # Get first 9 colors from tab10 colormap
+        colors = list(colors)  # Convert to list for manipulation
+        colors.append((0.5, 0.5, 0.5, 1.0))  # Add gray color for "Other"
+        
+        plt.pie(password_counts_plot, labels=password_counts_plot.index, autopct='%1.1f%%', 
+                startangle=90, shadow=True, colors=colors)
+    else:
+        # If we have 9 or fewer passwords, just use all of them
+        plt.pie(password_counts, labels=password_counts.index, autopct='%1.1f%%', 
+                startangle=90, shadow=True)
+    
+    plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+    plt.title('Most Common Passwords', fontsize=16)
+    plt.savefig(f"{output_dir}/password_distribution.png", bbox_inches='tight')
+    plt.close()
+    print("Generated password distribution pie chart")
+
+def login_attempts_timeline():
+    """Generate a timeline of login attempts over time"""
+    if login_df.empty or 'timestamp' not in login_df.columns:
+        print("No timestamp data available for login timeline")
+        return
+    
+    try:
+        print("Creating login attempts timeline chart...")
+        
+        # Convert timestamps to datetime objects
+        login_df['timestamp'] = pd.to_datetime(login_df['timestamp'], errors='coerce')
+        
+        # Filter out invalid timestamps
+        valid_df = login_df.dropna(subset=['timestamp'])
+        
+        if valid_df.empty:
+            print("No valid timestamp data available")
+            return
+        
+        # Group by day and count attempts
+        valid_df['date'] = valid_df['timestamp'].dt.date
+        attempts_by_date = valid_df.groupby('date').size()
+        
+        # Check if we have enough data points
+        if len(attempts_by_date) <= 1:
+            print("Not enough data points for a timeline (need at least 2 different dates)")
+            return
+        
+        # Create the plot
+        plt.figure(figsize=(14, 8))
+        
+        # Plot the data
+        ax = attempts_by_date.plot(kind='line', marker='o', linewidth=2)
+        
+        # Format x-axis to show dates properly
+        plt.gcf().autofmt_xdate()
+        
+        # Add grid lines for easier reading
+        plt.grid(True, alpha=0.3)
+        
+        # Add labels and title
+        plt.title('Login Attempts Over Time', fontsize=16)
+        plt.xlabel('Date', fontsize=14)
+        plt.ylabel('Number of Attempts', fontsize=14)
+        
+        # Add data point values
+        for i, v in enumerate(attempts_by_date):
+            ax.text(i, v + 0.5, str(v), ha='center')
+        
+        # Ensure y-axis starts at 0 for better visualization
+        plt.ylim(bottom=0)
+        
+        # Make sure the layout looks good
+        plt.tight_layout()
+        
+        # Save the figure
+        plt.savefig(f"{output_dir}/login_attempts_timeline.png", bbox_inches='tight')
+        plt.close()
+        
+        print("Successfully generated login attempts timeline chart")
+    except Exception as e:
+        print(f"Error generating login timeline: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+def login_attempts_timeline_alt():
+    """Alternative implementation of login attempts timeline"""
+    if login_df.empty:
+        print("No login data available")
+        return
+    
+    # Try to find a timestamp column (could have different names)
+    timestamp_col = None
+    for col in login_df.columns:
+        if 'time' in col.lower() or 'date' in col.lower():
+            timestamp_col = col
+            break
+    
+    if timestamp_col is None:
+        print("No timestamp column found")
+        return
+    
+    try:
+        # Convert to datetime and handle errors
+        login_df['date_parsed'] = pd.to_datetime(login_df[timestamp_col], errors='coerce')
+        valid_df = login_df.dropna(subset=['date_parsed'])
+        
+        if valid_df.empty:
+            print("No valid dates found after parsing")
+            return
+        
+        # Extract date part only
+        valid_df['date_only'] = valid_df['date_parsed'].dt.date
+        
+        # Group and count
+        counts = valid_df.groupby('date_only').size()
+        
+        # Create the plot directly with matplotlib
+        plt.figure(figsize=(14, 8))
+        
+        dates = [pd.Timestamp(d) for d in counts.index]
+        values = counts.values
+        
+        plt.plot(dates, values, 'o-', linewidth=2, markersize=8)
+        
+        # Format the plot
+        plt.title("Login Attempts Over Time", fontsize=16)
+        plt.xlabel("Date", fontsize=14)
+        plt.ylabel("Number of Attempts", fontsize=14)
+        plt.grid(True, alpha=0.3)
+        
+        # Format dates on x-axis
+        plt.gcf().autofmt_xdate()
+        
+        # Add values above points
+        for i, (date, value) in enumerate(zip(dates, values)):
+            plt.annotate(str(value), (date, value), textcoords="offset points", 
+                         xytext=(0,10), ha='center')
+        
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/login_attempts_timeline_alt.png", bbox_inches='tight')
+        plt.close()
+        
+        print("Successfully generated login attempts timeline (alternative method)")
+    except Exception as e:
+        print(f"Error in alternative timeline generation: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
+def ip_reconnection_frequency():
+    """Analyze how frequently each IP attempts to reconnect within an hour"""
+    # Vérification de disponibilité des données
+    ip_data_available = False
+    timestamp_data_available = False
+    
+    # Vérifier si l'une des tables contient les données IP et timestamp nécessaires
+    tables_to_check = [login_df, connection_df]
+    
+    for df in tables_to_check:
+        if df.empty:
+            continue
+            
+        # Recherche de colonnes d'IP
+        ip_col = None
+        for col in df.columns:
+            if 'ip' in col.lower():
+                ip_col = col
+                ip_data_available = True
+                break
+                
+        # Recherche de colonnes de timestamp
+        timestamp_col = None
+        for col in df.columns:
+            if 'time' in col.lower() or 'date' in col.lower() or 'stamp' in col.lower():
+                timestamp_col = col
+                timestamp_data_available = True
+                break
+                
+        # Si on a trouvé les deux colonnes dans cette table, on l'utilise
+        if ip_data_available and timestamp_data_available:
+            analysis_df = df
+            break
+    
+    if not ip_data_available or not timestamp_data_available:
+        print(f"No IP or timestamp data available for reconnection analysis (IP available: {ip_data_available}, Timestamp available: {timestamp_data_available})")
+        return
+    
+    try:
+        print(f"Using columns: {ip_col} and {timestamp_col} for reconnection analysis")
+        
+        # Convert timestamps to datetime
+        analysis_df[timestamp_col] = pd.to_datetime(analysis_df[timestamp_col], errors='coerce')
+        valid_df = analysis_df.dropna(subset=[timestamp_col, ip_col])
+        
+        if valid_df.empty:
+            print("No valid timestamp and IP data available after conversion")
+            return
+            
+        # Sort by IP and timestamp
+        sorted_df = valid_df.sort_values([ip_col, timestamp_col])
+        
+        # Initialize dictionary to store reconnection counts
+        ip_reconnection_counts = {}
+        
+        # Process each IP separately
+        for ip, group in sorted_df.groupby(ip_col):
+            # Skip IPs with only one attempt
+            if len(group) <= 1:
+                continue
+                
+            # Convert timestamps to a list
+            timestamps = group[timestamp_col].tolist()
+            
+            # Count reconnections within different time intervals (in minutes)
+            intervals = {
+                '< 1 min': 0,
+                '1-5 mins': 0,
+                '5-15 mins': 0,
+                '15-30 mins': 0,
+                '30-60 mins': 0,
+                '> 60 mins': 0
+            }
+            
+            # Calculate time differences between consecutive attempts
+            for i in range(1, len(timestamps)):
+                time_diff = (timestamps[i] - timestamps[i-1]).total_seconds() / 60  # Convert to minutes
+                
+                if time_diff < 1:
+                    intervals['< 1 min'] += 1
+                elif time_diff < 5:
+                    intervals['1-5 mins'] += 1
+                elif time_diff < 15:
+                    intervals['5-15 mins'] += 1
+                elif time_diff < 30:
+                    intervals['15-30 mins'] += 1
+                elif time_diff < 60:
+                    intervals['30-60 mins'] += 1
+                else:
+                    intervals['> 60 mins'] += 1
+            
+            # Store the counts for this IP
+            ip_reconnection_counts[ip] = intervals
+        
+        # Check if we have any reconnection data
+        if not ip_reconnection_counts:
+            print("No reconnection patterns found in the data")
+            return
+            
+        print(f"Found reconnection patterns for {len(ip_reconnection_counts)} IP addresses")
+        
+        # Create DataFrame from the counts
+        columns = ['< 1 min', '1-5 mins', '5-15 mins', '15-30 mins', '30-60 mins', '> 60 mins']
+        reconnection_data = pd.DataFrame.from_dict(ip_reconnection_counts, orient='index', columns=columns)
+        
+        # Calculate total reconnections for each IP
+        reconnection_data['total'] = reconnection_data.sum(axis=1)
+        
+        # Sort by total reconnections and get top 15 (or less if we have fewer IPs)
+        top_count = min(15, len(reconnection_data))
+        top_ips = reconnection_data.sort_values('total', ascending=False).head(top_count)
+        
+        # Remove the total column for plotting
+        top_ips = top_ips.drop(columns=['total'])
+        
+        # Plot the stacked bar chart
+        plt.figure(figsize=(14, 10))
+        
+        # Create a stacked bar chart
+        top_ips.plot(kind='barh', stacked=True, figsize=(14, 10), 
+                     colormap='viridis', width=0.8)
+        
+        plt.title(f'Reconnection Frequency Analysis by IP Address (Top {top_count})', fontsize=16)
+        plt.xlabel('Number of Reconnection Attempts', fontsize=14)
+        plt.ylabel('IP Address', fontsize=14)
+        plt.legend(title='Time Interval Between Attempts')
+        plt.grid(axis='x', alpha=0.3)
+        plt.tight_layout()
+        
+        plt.savefig(f"{output_dir}/ip_reconnection_frequency.png", bbox_inches='tight')
+        plt.close()
+        
+        # Create a second visualization: distribution of reconnection intervals
+        interval_totals = top_ips.sum()
+        
+        plt.figure(figsize=(12, 7))
+        interval_totals.plot(kind='bar', color=plt.cm.viridis(np.linspace(0, 1, len(interval_totals))))
+        
+        plt.title('Distribution of Time Intervals Between Reconnection Attempts', fontsize=16)
+        plt.xlabel('Time Interval', fontsize=14)
+        plt.ylabel('Number of Reconnection Attempts', fontsize=14)
+        plt.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        
+        plt.savefig(f"{output_dir}/reconnection_interval_distribution.png", bbox_inches='tight')
+        plt.close()
+        
+        print("Generated IP reconnection frequency analysis")
+    except Exception as e:
+        print(f"Error analyzing IP reconnection frequency: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
 # Create all visualizations
 create_visualization(username_chart, "username distribution chart")
 create_visualization(login_success_chart, "login success rate chart")
 create_visualization(country_chart, "country distribution chart")
 create_visualization(ip_chart, "IP distribution chart")
 create_visualization(subnet_chart, "subnet distribution chart")
-create_visualization(connection_status_chart, "connection status chart")
 create_visualization(command_count_chart, "command count chart")
 create_visualization(connection_timeline, "connection timeline chart")
+
+
+# Ajoutez ces lignes pour les nouveaux graphiques
+create_visualization(login_time_heatmap, "login time heatmap")
+create_visualization(credentials_heatmap, "credentials heatmap")
+create_visualization(ip_diversity_chart, "IP diversity chart")
+create_visualization(password_prefix_chart, "password prefix chart")
+create_visualization(success_by_country, "success by country chart")
+# Ajoutez geo_map_chart uniquement si vous avez installé Basemap
+create_visualization(geo_map_folium, "geographical map")
+create_visualization(password_pie_chart, "password distribution pie chart")
+create_visualization(login_attempts_timeline, "login attempts timeline") 
+create_visualization(login_attempts_timeline_alt, "login attempts timeline alt")
+create_visualization(ip_reconnection_frequency, "IP reconnection frequency analysis")
 
 print(f"\nAll visualizations have been saved to the '{output_dir}' directory")
 
