@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Honeypot Analysis Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #2c3e50; }
+        .container { display: flex; flex-wrap: wrap; }
+        .chart { margin: 10px; border: 1px solid #ddd; padding: 10px; }
+        img { max-width: 100%; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Honeypot Analysis Report</h1>
+    <p>Generated on 2025-02-26 18:20:09</p>
+    
+    <h2>Data Summary</h2>
+    <table>
+        <tr>
+            <th>Table</th>
+            <th>Row Count</th>
+        </tr>
+
+        <tr>
+            <td>connections</td>
+            <td>19</td>
+        </tr>
+    
+        <tr>
+            <td>ip_geolocations</td>
+            <td>136</td>
+        </tr>
+    
+        <tr>
+            <td>login_attempts</td>
+            <td>1764</td>
+        </tr>
+    
+        <tr>
+            <td>user_commands</td>
+            <td>0</td>
+        </tr>
+    
+    </table>
+    
+    <h2>Visualizations</h2>
+    <div class="container">
+
+        <div class="chart">
+            <h3>Subnet Distribution</h3>
+            <img src="subnet_distribution.png" alt="Subnet Distribution">
+        </div>
+        
+        <div class="chart">
+            <h3>Country Pie</h3>
+            <img src="country_pie.png" alt="Country Pie">
+        </div>
+        
+        <div class="chart">
+            <h3>Connection Status</h3>
+            <img src="connection_status.png" alt="Connection Status">
+        </div>
+        
+        <div class="chart">
+            <h3>Country Distribution</h3>
+            <img src="country_distribution.png" alt="Country Distribution">
+        </div>
+        
+        <div class="chart">
+            <h3>Username Distribution</h3>
+            <img src="username_distribution.png" alt="Username Distribution">
+        </div>
+        
+        <div class="chart">
+            <h3>Ip Distribution</h3>
+            <img src="ip_distribution.png" alt="Ip Distribution">
+        </div>
+        
+    </div>
+</body>
+</html>
