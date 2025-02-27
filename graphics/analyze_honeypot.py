@@ -2,6 +2,21 @@
 """
 Honeypot Data Analysis Script
 This script generates visualizations from a MySQL dump of a honeypot database.
+
+Dependencies:
+- pandas
+- matplotlib
+- seaborn
+- numpy
+- folium (optional, for geographical maps)
+- selenium (optional, for generating static images from folium maps)
+
+#Install dependencies
+#You can use the following command to install all required dependencies:
+
+pip install pandas matplotlib seaborn numpy folium selenium
+
+It is preferable to use a virtual environment (venv) to manage dependencies.
 """
 
 import re
