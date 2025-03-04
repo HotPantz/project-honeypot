@@ -17,12 +17,12 @@
 - [x] Populate ps output with decoy processes
 - [x] Simulate common shell commands (e.g., `sudo`) to make the user think they are using a real shell
 - [x] Implement deceptive command responses for common system commands
-- [ ] Don't allow user to exit the fake file system
-- [ ] Simulate sudo behavior with fake permission denied messages
+- [x] Don't allow user to exit the fake file system
+- [x] Simulate sudo behavior with fake permission denied messages
 - [x] Use IP geolocation services for logging attacker's location 
 - [x] Track and log session duration 
 - [x] Log failed command attempts 
-- [ ] Create honey files for fake file download
+- [x] Create honey files for fake file download
 - [x] Add visual analytics to the dashboard 
 - [x] Display a real-time command feed on the dashboard 
 

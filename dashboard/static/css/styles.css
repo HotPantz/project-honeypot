@@ -20,14 +20,14 @@
 }
 
 #connections {
-    max-height: 342px; /* Adjust the height as needed */
+    max-height: 342px;
     overflow-y: auto;
 }
 
 .chart-container {
     position: relative;
     margin: auto;
-    height: 500px; /* Adjust height as needed */
+    height: 500px;
     width: 100%;
 }
 
@@ -46,12 +46,10 @@
     min-height: 500px !important;
 }
   
-/* Ensure parent containers don't collapse */
 .card-body > #map {
     padding: 0 !important;
 }
   
-/* Optionally style the container */
 #v-pills-geo-connections .card-body {
     padding: 0 !important;
 }

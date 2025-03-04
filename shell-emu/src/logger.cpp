@@ -13,13 +13,13 @@
 #include <cstring>
 #include <cerrno>
 #include <cstring>
-#include <unistd.h>  // for getuid()
+#include <unistd.h>
 
 std::ofstream sessionLogFile;
 std::string sessionLogFilePath;
 
 
-//Callback function for libcurl to write data into a string
+//libcurl callback for HTTP response handling
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) 
 {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
@@ -40,36 +40,11 @@ void write_error_to_log(const std::string& errMsg)
     }
 }
 
-//deprecated
-std::string get_public_ip() 
-{
-    CURL* curl;
-    CURLcode res;
-    std::string readBuffer;
-
-    curl = curl_easy_init();
-    if(curl) 
-    {
-        curl_easy_setopt(curl, CURLOPT_URL, "https://api.ipify.org");
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-        res = curl_easy_perform(curl);
-        if(res != CURLE_OK) 
-        { //not using the write_error_to_log since we get the IP before initializing the log
-            std::stringstream errstream;
-            errstream << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
-            readBuffer = errstream.str();
-        }
-        curl_easy_cleanup(curl);
-    }
-    return readBuffer;
-}
-
-// Initializes a unique log file for the session
+//creates session log with IP-specific filename in configured directory
 void initialize_session_log(const std::string& publicIP)
 {
      
-    //reading LOG_DIR env var from "../../.env"
+    //determine log directory from environment or use default
      std::string logDir;
      const char* env_log_dir = std::getenv("LOG_DIR");
      if(env_log_dir != nullptr)
@@ -88,6 +63,7 @@ void initialize_session_log(const std::string& publicIP)
     std::cerr << "[DEBUG] Effective UID: " << getuid() << std::endl;
     #endif
     
+    //create log directory if it doesn't exist
     struct stat info;
     if(stat(logDir.c_str(), &info) != 0)
     {
@@ -106,7 +82,8 @@ void initialize_session_log(const std::string& publicIP)
             #endif
         }
     } 
-    else{
+    else
+    {
         if(!S_ISDIR(info.st_mode))
         {
             #ifdef DEBUG
@@ -122,6 +99,7 @@ void initialize_session_log(const std::string& publicIP)
         }
     }
     
+    //generate timestamped filename with IP address
     std::time_t now = std::time(nullptr);
     std::tm* localDate = std::localtime(&now);
     std::ostringstream oss;
@@ -133,7 +111,7 @@ void initialize_session_log(const std::string& publicIP)
     std::cerr << "[DEBUG] Constructed session log file path: " << sessionLogFilePath << std::endl;
     #endif
     
-    //Temporarily set umask to 0022 so that the file is created with 0644 permissions
+    //set appropriate file permissions
     mode_t old_mask = umask(0022);
     sessionLogFile.open(sessionLogFilePath, std::ios::app);
     umask(old_mask);
@@ -161,7 +139,7 @@ void initialize_session_log(const std::string& publicIP)
     }
 }
 
-// Logs a command for the session in a csv manner, with timestamp and user IP)
+//Logs a command for the session in a csv manner, with timestamp and user IP)
 void log_command(const std::string& userIp, const std::string& command)
 {
     if(sessionLogFile.is_open())
@@ -176,7 +154,7 @@ void log_command(const std::string& userIp, const std::string& command)
 }
 
 
-// Logs the disconnection message
+//logs session end with metrics 
 void log_disconnection(const std::string& userIp, int duration, int commandCount) {
     if(sessionLogFile.is_open()) {
         std::ostringstream oss;
@@ -187,7 +165,6 @@ void log_disconnection(const std::string& userIp, int duration, int commandCount
 }
 
 
-// Closes the session log file 
 void close_session_log() {
     if (sessionLogFile.is_open()) {
         sessionLogFile.close();
@@ -195,7 +172,7 @@ void close_session_log() {
 }
 
 
-// Ensure the session log is closed on exit
+//cleanup handler that ensures log file is properly closed when program exits
 struct LogSaver {
     ~LogSaver() {
         close_session_log();

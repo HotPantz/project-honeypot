@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include <pwd.h>
 
+//track session metrics
 auto sessionStart = std::chrono::steady_clock::now();
 int commandCount = 0;
 
@@ -18,9 +19,10 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<char[]> istream(new char[MAX_INPUT_LEN]);
     std::unique_ptr<char[]> cwd(new char[MAX_DIR_LEN]);
 
+    //get client IP from environment variable set by SSH server
     const char* ip_env = std::getenv("SSH_CLIENT_IP");
     std::string publicIP;
-    if(ip_env != nullptr && std::strlen(ip_env) > 0) {
+    if(ip_env != nullptr && std::strlen(ip_env) > 0){
         publicIP = std::string(ip_env);
         #ifdef DEBUG
             std::cout << "[DEBUG] SSH_CLIENT_IP: " << publicIP << std::endl;
@@ -36,39 +38,44 @@ int main(int argc, char* argv[]) {
         initialize_session_log(publicIP);
     }
 
-    // Aller au répertoire home avant de démarrer la boucle du shell
+    //change to user's home directory before starting shell loop
     struct passwd* pw = getpwuid(getuid());
-    if (pw != nullptr) {
+    if(pw != nullptr){
         const char* homeDir = pw->pw_dir;
-        if (chdir(homeDir) != 0) {
+        if(chdir(homeDir) != 0){
             perror("Impossible de changer de répertoire vers HOME");
         }
-    } else {
+    }
+    else{
         #ifdef DEBUG
         std::cerr << "Impossible de récupérer le répertoire HOME de l'utilisateur." << std::endl;
         #endif
     }
 
-    while (true) {
-        if (getcwd(cwd.get(), MAX_DIR_LEN) == nullptr) {
+    while(true)
+    {
+        if(getcwd(cwd.get(), MAX_DIR_LEN) == nullptr){
             std::cerr << "Couldn't get current working directory" << std::endl;
             std::cout << "\033[1m%\033[0m ";
-        } else {
+        }
+        else{
             std::string fullPath(cwd.get());
             size_t pos = fullPath.find_last_of('/');
             std::string baseDir = (pos == std::string::npos) ? fullPath : fullPath.substr(pos + 1);
 
-            // Modifier le prompt pour afficher root # si l'utilisateur est froot et dans /froot
-            if (std::string(pw->pw_name) == "froot" && fullPath == "/froot") {
+            //customize prompt based on user and location to simulate root shell
+            if(std::string(pw->pw_name) == "froot" && fullPath == "/froot"){
                 std::cout << "\033[1mroot\033[0m # ";
-            } else if (std::string(pw->pw_name) == "froot") {
+            } 
+            else if (std::string(pw->pw_name) == "froot"){
                 std::cout << "\033[1m" << baseDir << "\033[0m # ";
-            } else {
+            } 
+            else{
                 std::cout << "\033[1m" << baseDir << "\033[0m $ ";
             }
         }
 
-        if (fgets(istream.get(), MAX_INPUT_LEN, stdin) == nullptr) {
+        if(fgets(istream.get(), MAX_INPUT_LEN, stdin) == nullptr){
             break;
         }
 
@@ -93,10 +100,12 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             } 
-            else if (command == "cd") {
+            else if(command == "cd")
+            {
                 std::string dir = pop(head);
-                if (dir.empty()) {
-                    // no target dir, move to home
+                if(dir.empty())
+                {
+                    //default to home directory when no target specified
                     struct passwd* pw = getpwuid(getuid());
                     if (pw != nullptr) {
                         dir = std::string(pw->pw_dir);
@@ -108,36 +117,41 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
-                // Rediriger les tentatives d'accès à /root vers /froot pour l'utilisateur froot
-                if (std::string(pw->pw_name) == "froot" && (dir == "/root" || dir == "root")) {
+                //redirect /root access attempts to /froot for froot user
+                if(std::string(pw->pw_name) == "froot" && (dir == "/root" || dir == "root")){
                     dir = "/froot";
                 }
 
                 // try changing directory as given
-                if (chdir(dir.c_str()) == -1) {
+                if(chdir(dir.c_str()) == -1)
+                {
                     // if it fails and it doesn't appear to be an absolute or already relative
-                    if (dir.front() != '/' && dir.substr(0, 2) != "./" && dir.substr(0, 3) != "../") {
+                    if(dir.front() != '/' && dir.substr(0, 2) != "./" && dir.substr(0, 3) != "../"){
                         std::string prefixedDir = "./" + dir;
-                        if (chdir(prefixedDir.c_str()) == -1) {
+                        if(chdir(prefixedDir.c_str()) == -1){
                             perror("Couldn't change directory");
                         }
-                    } else {
+                    }
+                    else{
                         perror("Couldn't change directory");
                     }
                 }
             }
-            else if (command == "whoami") {
-                // Modifier la commande whoami pour afficher root si l'utilisateur est froot
-                if (std::string(pw->pw_name) == "froot") {
+            else if(command == "whoami")
+            {
+                //display root instead of froot to maintain illusion
+                if(std::string(pw->pw_name) == "froot"){
                     std::cout << "root" << std::endl;
-                } else {
+                }
+                else{
                     std::cout << pw->pw_name << std::endl;
                 }
             }
             else
             {
                 pid_t pid = fork();
-                switch (pid) {
+                switch (pid)
+                {
                     case -1:
                         perror("Fork error");
                         break;
@@ -145,7 +159,7 @@ int main(int argc, char* argv[]) {
                         doexec();
                         break;
                     default:
-                        if (!run_bg) {
+                        if(!run_bg){
                             waitpid(pid, nullptr, 0);
                         }
                         run_bg = false;
@@ -153,7 +167,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        if (head != nullptr) {
+        if(head != nullptr){
             freeList(head);
         }
     }

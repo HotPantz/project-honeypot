@@ -16,7 +16,7 @@ import pwd, grp
 import pam
 from dotenv import load_dotenv
 
-# Configure logging to file with date and time.
+#logging to file with date and time.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -25,17 +25,15 @@ logging.basicConfig(
     filemode="a"              # Append mode
 )
 
-# Optionally log to the console.
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S")
 console.setFormatter(formatter)
 logging.getLogger("").addHandler(console)
 
-# For soft shutdown with CTRL+C
+#For soft shutdown with CTRL+C
 shutdown_requested = False
 
-# Load host key and environment variable
 HOST_KEY = paramiko.RSAKey(filename='key/serv_rsa.key')
 
 load_dotenv()
@@ -54,7 +52,7 @@ class Server(paramiko.ServerInterface):
     def __init__(self):
         self.event = threading.Event()
         self.pam_auth = pam.pam()
-        self.ip = 'unknown'  # default if not set externally
+        self.ip = 'unknown'  #default if not set externally
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -67,14 +65,12 @@ class Server(paramiko.ServerInterface):
             username = "froot"
             logging.info(f"Redirecting root user to {username}")
 
-        #if ALLOW_ROOT mode is enabled, automatically accept all root connections
-        if ALLOW_ROOT and original_username == "root":
+        if ALLOW_ROOT and original_username == "root": #automatically accept all root connections
             logging.info("ALLOW_ROOT mode enabled: accepting authentication for root for user: " + original_username)
             log_login_attempt(self.ip, original_username, password, True)
             logging.info(f"PAM authentication successful for user: {original_username}")
             return paramiko.AUTH_SUCCESSFUL
-        else:
-            # Use PAM authentication for non-root (or redirected root) users.
+        else: #use PAM authentication for non-root (or redirected root) users
             if self.pam_auth.authenticate(username, password, service='honeypot'):
                 logging.info(f"PAM authentication successful for user: {username}")
                 result = paramiko.AUTH_SUCCESSFUL
@@ -109,9 +105,9 @@ def log_connection(ip, pseudo_id, duration):
     try:
         with connection.cursor() as cursor:
             sql = "INSERT INTO connections (ip, pseudo_id, duration, status) VALUES (%s, %s, %s, %s)"
-            cursor.execute(sql, (ip, pseudo_id, duration, True))  # Set status to True (online)
+            cursor.execute(sql, (ip, pseudo_id, duration, True))  #setting the status to true for the dashboard to read it
             connection.commit()
-            return cursor.lastrowid  # Return the ID of inserted connection
+            return cursor.lastrowid  #returning the ID of the new connection
     except pymysql.Error as e:
         logging.error(f"Database error: {e}")
         raise
@@ -165,7 +161,7 @@ def log_login_attempt(ip, username, password, success):
         connection.close()
 
 def drop_privileges(uid_name, gid_name):
-    #Drop root privileges by switching to the specified non‑privileged user
+    #security measure to run as non-root user
     if os.getuid() != 0:
         return
 
@@ -175,13 +171,10 @@ def drop_privileges(uid_name, gid_name):
     except KeyError as e:
         raise Exception(f"User or group {uid_name} not found: {e}")
 
-    #Drop group privileges
     os.setgid(running_gid)
-    #Drop supplementary groups
-    os.setgroups([])
-    #Drop user privileges
+    os.setgroups([]) #remove all additional groups
     os.setuid(running_uid)
-    os.umask(0o077)
+    os.umask(0o077) #set restrictive file creation mask
 
 def handle_connection(client, addr):
     transport = paramiko.Transport(client)
@@ -209,12 +202,12 @@ def handle_connection(client, addr):
     username = transport.get_username()
     logging.info(f'Authenticated connection from {ip} as {username}')
 
-    # If the user is root, change to another user (e.g., fake_root)
+    #ensuring root user is redirected to froot
     if username == "root":
         username = "froot"
         logging.info(f"Redirecting root user to {username}")
 
-    # Emitting connection status updates to the frontend.
+    #notifying the dashboard about new connection
     try:
         requests.post(f"{DASHBOARD_URL}/notify_status", json={'ip': ip, 'online': True}, timeout=10)
     except Exception as e:
@@ -237,16 +230,16 @@ def handle_connection(client, addr):
         logging.info(f"User home directory: {user_home}")
 
         env = os.environ.copy()
-        env["SSH_CLIENT_IP"] = ip
+        env["SSH_CLIENT_IP"] = ip #passing client IP to shell environment
         env["LOG_DIR"] = LOG_DIR
 
         shell_path = os.path.abspath('/usr/bin/fshell')
-        master_fd, slave_fd = pty.openpty()
+        master_fd, slave_fd = pty.openpty() #create pseudo-terminal for shell interaction
 
-        # Passing the IP as an environment variable.
         env = os.environ.copy()
         env["SSH_CLIENT_IP"] = ip
 
+        #launching fshell with dropped privileges
         shell_process = subprocess.Popen(
             [shell_path],
             stdin=slave_fd,
@@ -310,7 +303,7 @@ def fetch_geolocation(ip):
     url = f"http://ip-api.com/json/{ip}"
     try:
         response = requests.get(url, timeout=5)
-        # Check rate limit headers from IP-API.
+        #handling rate limiting from the API
         remaining = response.headers.get("X-Rl")
         ttl = response.headers.get("X-Ttl")
         if remaining is not None and int(remaining) == 0:
@@ -335,15 +328,14 @@ def update_ip_geolocation(ip):
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            # Check if a record for this IP already exists.
+            #check if we already have recent data for this IP
             sql = "SELECT * FROM ip_geolocations WHERE ip = %s ORDER BY fetched_at DESC LIMIT 1"
             cursor.execute(sql, (ip,))
             result = cursor.fetchone()
             
-            # Determine whether to fetch new geolocation data:
             fetch_new = False
             if result:
-                # If fetched_at is older than 1 day, update.
+                #only update geolocations older than 1 day to avoid API rate limits
                 record_time = result.get('fetched_at')
                 if record_time is None or record_time < datetime.now() - timedelta(days=1):
                     fetch_new = True
@@ -356,8 +348,7 @@ def update_ip_geolocation(ip):
                 logging.info(f"Fetching geolocation for {ip}.")
                 geo = fetch_geolocation(ip)
                 if geo:
-                    if result:
-                        # Update the existing record.
+                    if result: #update existing record
                         update_sql = """
                             UPDATE ip_geolocations 
                             SET country = %s,
@@ -378,8 +369,7 @@ def update_ip_geolocation(ip):
                             geo.get('lon'),
                             ip
                         ))
-                    else:
-                        # Insert a new record.
+                    else: #create new record
                         insert_sql = """
                             INSERT INTO ip_geolocations (ip, country, country_code, region, city, lat, lon)
                             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -421,20 +411,20 @@ def start_ssh_server():
     
     while not shutdown_requested:
         try:
-            server_socket.settimeout(1.25)  # check shutdown flag periodically.
+            server_socket.settimeout(1.25) #check shutdown flag periodically
             client, addr = server_socket.accept()
             logging.info(f'Connection from {addr}')
             pid = os.fork()
             if pid == 0:
-                # In child process.
-                server_socket.close()  # Child doesn't need the main server socket.
+                 #child process handles the connection
+                server_socket.close() 
                 try:
                     handle_connection(client, addr)
                 finally:
                     client.close()
                     os._exit(0)
             else:
-                # In parent process.
+                #parent process continues accepting connections
                 client.close()
                 os.waitpid(-1, os.WNOHANG)
         except socket.timeout:

@@ -6,15 +6,14 @@ import glob
 from datetime import datetime, timedelta
 import time
 from dotenv import load_dotenv
-#from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 import re
 
-# load .env
+#load environment variables from parent directory
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../.env'))
 
-# read log directory from the environment variable (fallback to /var/log/analytics)
+#default log directory is /var/log/analytics if not specified in .env
 LOGS_FOLDER = os.getenv("LOG_DIR", "/var/log/analytics")
 if LOGS_FOLDER and LOGS_FOLDER[-1] != '/':
     LOGS_FOLDER += '/'
@@ -73,11 +72,12 @@ def live_shell():
             shells = cursor.fetchall()
         
         for shell in shells:
+            #convert string timestamps to datetime objects if needed
             if isinstance(shell['last_seen'], str):
                 shell['last_seen'] = datetime.strptime(shell['last_seen'], '%Y-%m-%d %H:%M:%S')
             shell['online'] = shell['status']
             
-            # Compter les commandes dans le dernier fichier de session
+            #count commands in the most recent session log file for this IP
             logs_dir = LOGS_FOLDER
             session_files = [f for f in os.listdir(logs_dir) if f.startswith(f"session_{shell['ip']}_")]
             if session_files:
@@ -126,6 +126,7 @@ def shell_detail(ip):
 
 @app.route('/live_content/<ip>')
 def live_content(ip):
+    #get log content for a specific IP's latest session
     logs_dir = LOGS_FOLDER
     session_files = [f for f in os.listdir(logs_dir) if f.startswith(f"session_{ip}_")]
     if not session_files:
@@ -218,6 +219,7 @@ def active_connections_count():
         connection.close()
 
 def background_active_connections_update():
+    #background task that updates active connection count via websocket every 10 seconds
     while True:
         connection = get_db_connection()
         try:
@@ -237,9 +239,12 @@ def background_active_connections_update():
         socketio.emit('active_connections_update', {'count': count})
         time.sleep(10)
 
-# Route pour récupérer la liste des login attempts avec filtrage
+#===============================================================================
+# API endpoints
+#===============================================================================
 @app.route('/login_attempts')
 def login_attempts():
+    #fetch login attempts with optional filtering and sorting
     status_filter = request.args.get('status', 'all')
     sort_by = request.args.get('sort_by')
     sort_direction = request.args.get('sort_direction', 'asc')  # Default to ascending
@@ -263,24 +268,24 @@ def login_attempts():
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
 
-            # Add sorting
+           #apply custom sorting based on request parameters
             if sort_by:
-                # Map the data-column values to the actual column names
+                #map the data-column values to the actual column names
                 if sort_by == 'location':
-                    sort_by = 'ig.city'  # Or 'ig.country' or a combined expression
+                    sort_by = 'ig.city'
                 elif sort_by == 'status':
                     sort_by = 'la.status'
                 else:
                     sort_by = f'la.{sort_by}' # Use la. for other columns
 
                 sql += f" ORDER BY {sort_by} {sort_direction.upper()}"
-            else:
-                sql += " ORDER BY la.attempt_time DESC"  # Default sorting
+            else: #default sorting
+                sql += " ORDER BY la.attempt_time DESC"
 
             cursor.execute(sql, params)
             data = cursor.fetchall()
 
-            # Convert TINYINT to boolean for JSON serialization
+            #convert numeric status to boolean for JSON response
             for row in data:
                 row['status'] = bool(row['status'])
 
@@ -290,6 +295,7 @@ def login_attempts():
 
 @app.route('/connections_over_time')
 def connections_over_time():
+    #get connection statistics grouped by hour or day
     group_by = request.args.get('group_by', 'hour')
     connection = get_db_connection()
     try:
@@ -316,10 +322,11 @@ def connections_over_time():
 
 @app.route('/stats')
 def stats():
+    #generate statistics page with various data aggregations
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            # Récupérer les commandes les plus populaires
+            #top 10 most used commands
             popular_cmd_query = """
                 SELECT command, COUNT(*) AS count
                 FROM user_commands
@@ -330,12 +337,12 @@ def stats():
             cursor.execute(popular_cmd_query)
             popular_commands = cursor.fetchall()
             
-            # Récupérer la durée moyenne des sessions
+            #average session duration
             avg_duration_query = "SELECT AVG(duration) AS avg_duration FROM connections;"
             cursor.execute(avg_duration_query)
             avg_duration = cursor.fetchone()
             
-            # Récupérer les mots de passe les plus populaires
+            #top 10 passwords
             popular_passwords_query = """
                 SELECT password, COUNT(*) AS count
                 FROM login_attempts
@@ -346,7 +353,7 @@ def stats():
             cursor.execute(popular_passwords_query)
             popular_passwords = cursor.fetchall()
 
-            # Récupérer les noms d'utilisateur les plus tentés
+            #top 10 usernames
             popular_usernames_query = """
                 SELECT username, COUNT(*) AS count
                 FROM login_attempts
@@ -357,7 +364,7 @@ def stats():
             cursor.execute(popular_usernames_query)
             popular_usernames = cursor.fetchall()
 
-            # Récupérer les couples user:password les plus fréquents
+            #top 10 username:password combinations
             popular_userpass_query = """
                 SELECT username, password, COUNT(*) as count
                 FROM login_attempts
@@ -368,7 +375,7 @@ def stats():
             cursor.execute(popular_userpass_query)
             popular_userpass = cursor.fetchall()
 
-            # Récupérer les informations géographiques des connexions
+            #geographical data for map visualization
             geo_connections_query = """
                 SELECT ip, country, city, lat, lon
                 FROM ip_geolocations
@@ -388,12 +395,14 @@ def stats():
         connection.close()
         
 def emit_new_live(log_line, ip=""):
+    #send log entry to connected clients via websocket
     socketio.emit('new_live', {'log': log_line, 'ip': ip})
 
 file_offsets = {}
 
 class LogFileEventHandler(FileSystemEventHandler):
     def on_created(self, event):
+        #handle new log file creation
         if not event.is_directory and event.src_path.endswith('.txt'):
             file_offsets[event.src_path] = 0
             filename = os.path.basename(event.src_path)
@@ -404,6 +413,7 @@ class LogFileEventHandler(FileSystemEventHandler):
                     socketio.emit('new_session', {'ip': ip})
 
     def on_modified(self, event):
+        #process new content in log files
         if not event.is_directory and event.src_path.endswith('.txt'):
             if event.src_path not in file_offsets:
                 file_offsets[event.src_path] = 0
@@ -416,7 +426,8 @@ class LogFileEventHandler(FileSystemEventHandler):
                     for line in new_lines:
                         if line.strip().startswith("//"):
                             continue
-
+                        
+                        #handle disconnection message format
                         if "disconnected" in line.lower():
                             match = re.search(r'User ([\d\.]+)', line)
                             if match:
@@ -426,7 +437,7 @@ class LogFileEventHandler(FileSystemEventHandler):
                                 ip = file_match.group(1) if file_match else ""
                             print("Deconnexion detected:", line.strip(), "IP:", ip)
                             emit_new_live(line.strip(), ip)
-                        else:
+                        else: #handle standard command log format (CSV)
                             parts = line.strip().split(',')
                             if len(parts) >= 3:
                                 timestamp_str, ip = parts[0], parts[1]
@@ -436,10 +447,10 @@ class LogFileEventHandler(FileSystemEventHandler):
             except Exception:
                 pass
 
-#Watchdog that watches the logs folder for new (created after the start of the app) 
-#log files and new log lines
 def start_log_watcher():
+    #initialize file tracking and watch for log changes
     logs_folder = LOGS_FOLDER
+    #track existing log files before starting the observer
     for log_file in glob.glob(os.path.join(logs_folder, "*.txt")):
         try:
             with open(log_file, "r") as f:

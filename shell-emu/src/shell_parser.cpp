@@ -1,5 +1,3 @@
-// XX-XX-2023 Frederic MUSIAL made the shell parser
-
 #include "../headers/shell_parser.hpp"
 #include <string>
 #include <iostream>
@@ -7,28 +5,29 @@
 
 extern int run_bg;
 
-// Function to create a new node with the given token
-Node* createNode(const std::string& token) {
+//creates a new node containing the provided token
+Node* createNode(const std::string& token){
     return new Node(token);
 }
 
-// Function to add a new node with the given token to the end of the list
-void enqueue(Node*& head, const std::string& token) {
+//appends a token to the end of the linked list
+void enqueue(Node*& head, const std::string& token){
     Node* newNode = createNode(token);
-    if (!head) {
+    if(!head){
         head = newNode;
-    } else {
+    } 
+    else{
         Node* current = head;
-        while (current->next) {
+        while(current->next){
             current = current->next;
         }
         current->next = newNode;
     }
 }
 
-// Function to remove and return the token from the head of the list
-std::string pop(Node*& head) {
-    if (!head) {
+//removes and returns the first token in the list
+std::string pop(Node*& head){
+    if(!head){
         return "";
     }
     Node* temp = head;
@@ -38,33 +37,36 @@ std::string pop(Node*& head) {
     return token;
 }
 
-// Function to free all nodes in the list
-void freeList(Node*& head) {
-    while (head) {
+//deallocates all nodes in the list
+void freeList(Node*& head){
+    while (head)
+    {
         Node* temp = head;
         head = head->next;
         delete temp;
     }
 }
 
-// Function to print all tokens in the list
-void printList(Node* head) {
+//outputs all tokens line by line
+void printList(Node* head){
     Node* current = head;
-    while (current) {
+    while(current)
+    {
         std::cout << current->token;
-        if (current->next) {
+        if(current->next){
             std::cout << "\n";
         }
         current = current->next;
     }
 }
 
-// Function to get the nth token from the list
-std::string getNthToken(Node* head, int n) {
+//retrieves the token at position n (0-indexed)
+std::string getNthToken(Node* head, int n){
     Node* current = head;
     int i = 0;
-    while (current) {
-        if (i == n) {
+    while(current)
+    {
+        if(i == n){
             return current->token;
         }
         current = current->next;
@@ -73,26 +75,28 @@ std::string getNthToken(Node* head, int n) {
     return ""; // if n is greater than the number of tokens
 }
 
-// Function to remove leading spaces from a string
-std::string removeLeadingSpaces(const std::string& str) {
+//trims spaces from beginning of string
+std::string removeLeadingSpaces(const std::string& str){
     size_t start = 0;
-    while (start < str.size() && std::isspace(static_cast<unsigned char>(str[start]))) {
+    while(start < str.size() && std::isspace(static_cast<unsigned char>(str[start]))){
         start++;
     }
     return str.substr(start);
 }
 
-// Function to tokenize the input string and store tokens in the list
-void tokenize(const std::string& istream, Node*& head) {
+//basic tokenizer that splits input by spaces
+void tokenize(const std::string& istream, Node*& head){
     std::string input = removeLeadingSpaces(istream);
     size_t start = 0;
     size_t end = input.find(' ');
 
-    while (end != std::string::npos) {
+    while (end != std::string::npos)
+    {
         std::string token = input.substr(start, end - start);
-        if (token == "&") {
-            run_bg = 1;
-        } else {
+        if(token == "&"){
+            run_bg = 1; //set background execution flag
+        } 
+        else{
             enqueue(head, token);
         }
         start = end + 1;
@@ -107,38 +111,46 @@ void tokenize(const std::string& istream, Node*& head) {
     }
 }
 
-// Function to tokenize the input string considering quoted strings and store tokens in the list
-void tokenize2(const std::string& istream, Node*& head) {
+//advanced tokenizer that preserves quoted strings
+void tokenize2(const std::string& istream, Node*& head){
     std::string token;
     bool inQuotes = false;
 
-    for (char ch : istream) {
-        if (ch == '\"' || ch == '\'') {
-            inQuotes = !inQuotes;
-        } else if (ch == ' ' && !inQuotes) {
-            if (!token.empty()) {
-                if (token == "&") {
+    for(char ch : istream){
+        if(ch == '\"' || ch == '\''){
+            inQuotes = !inQuotes; //toggle quote state
+        } 
+        else if(ch == ' ' && !inQuotes)
+        { //space outside quotes delimits tokens
+            if(!token.empty())
+            {
+                if(token == "&"){
                     run_bg = 1;
-                } else {
+                } 
+                else{
                     enqueue(head, token);
                 }
                 token.clear();
             }
-        } else {
+        }
+        else{
             token += ch;
         }
     }
 
-    if (inQuotes) {
+    if(inQuotes) //handle unclosed quotes
+    {
         std::cerr << "Missing closing quote\n";
         freeList(head);
         return;
     }
 
-    if (!token.empty()) {
-        if (token == "&") {
+    if(!token.empty()) //handle final token
+    {
+        if(token == "&"){
             run_bg = 1;
-        } else {
+        } 
+        else{
             enqueue(head, token);
         }
     }

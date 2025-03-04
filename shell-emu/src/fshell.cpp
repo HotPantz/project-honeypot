@@ -11,9 +11,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <pwd.h>  // Inclure l'en-tête pour getpwuid et struct passwd
+#include <pwd.h>
 
-// Global variables
+//Global variables
 Node* head = nullptr;
 std::vector<char*> args;
 std::string command, outputFile, inputFile, errFile;
@@ -46,19 +46,19 @@ void doexec()
         if(fakePs)
         {
             std::string line;
-            while (std::getline(fakePs, line))
-            {
+            while(std::getline(fakePs, line)){
                 std::cout << line << std::endl;
             }
             fakePs.close();
         }
         exit(EXIT_SUCCESS);
     }
-    else if (command == "whoami") {
-        // Modifier la commande whoami pour afficher root si l'utilisateur est froot
-        if (std::string(pw->pw_name) == "froot") {
+    else if (command == "whoami")
+    { //modify whoami command to display root if user is froot
+        if(std::string(pw->pw_name) == "froot"){
             std::cout << "root" << std::endl;
-        } else {
+        }
+        else{
             std::cout << pw->pw_name << std::endl;
         }
         exit(EXIT_SUCCESS);
@@ -70,30 +70,37 @@ void doexec()
 
     //checking blacklist
     auto forbidden = std::find(blacklist.begin(), blacklist.end(), command);
-    if (forbidden != blacklist.end()) {
+    if(forbidden != blacklist.end())
+    {
         std::cerr << "Command \"" << command << "\" is not allowed!" << std::endl;
         exit(EXIT_FAILURE);
     }
     
     //block commands with /sbin/ prefix
-    if(command.compare(0, 6, "/sbin/") == 0) {
+    if(command.compare(0, 6, "/sbin/") == 0)
+    {
         std::cerr << "Command \"" << command << "\" is not allowed!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    while (head != nullptr) {
+    while(head != nullptr)
+    {
         token = pop(head);
 
-        if (token == ">") {
+        if(token == ">")
+        {
             outputFile = pop(head);
             continue;
-        } else if (token == "<") {
+        }
+        else if (token == "<"){
             inputFile = pop(head);
             continue;
-        } else if (token == "2>") {
+        }
+        else if (token == "2>"){
             errFile = pop(head);
             continue;
-        } else if (token == "|") {
+        }
+        else if (token == "|"){
             token = pop(head);
 
             if (token.empty() || head == nullptr) {
@@ -127,23 +134,27 @@ void doexec()
                     command = token;
                     break;
             }
-        } else {
+        }
+        else{
             char* arg = new char[token.size() + 1];
             std::strcpy(arg, token.c_str());
             args.push_back(arg);
         }
     }
 
-    if (args.size() < MAX_ARGS) {
+    if(args.size() < MAX_ARGS){
         args.push_back(nullptr);
-    } else {
+    } 
+    else{
         std::cerr << "Too many arguments" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    if (!outputFile.empty()) {
+    if(!outputFile.empty())
+    {
         int fd = open(outputFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-        if (fd == -1) {
+        if(fd == -1)
+        {
             perror("Couldn't open output file");
             exit(EXIT_FAILURE);
         }
@@ -154,26 +165,32 @@ void doexec()
         close(fd);
     }
 
-    if (!inputFile.empty()) {
+    if(!inputFile.empty())
+    {
         int fd = open(inputFile.c_str(), O_RDONLY);
-        if (fd == -1) {
+        if(fd == -1)
+        {
             perror("Couldn't open input file");
             exit(EXIT_FAILURE);
         }
-        if (dup2(fd, STDIN_FILENO) == -1) {
+        if(dup2(fd, STDIN_FILENO) == -1)
+        {
             perror("Couldn't duplicate file descriptor");
             exit(EXIT_FAILURE);
         }
         close(fd);
     }
 
-    if (!errFile.empty()) {
+    if(!errFile.empty())
+    {
         int fd = open(errFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-        if (fd == -1) {
+        if(fd == -1)
+        {
             perror("Couldn't open error file");
             exit(EXIT_FAILURE);
         }
-        if (dup2(fd, STDERR_FILENO) == -1) {
+        if(dup2(fd, STDERR_FILENO) == -1)
+        {
             perror("Couldn't duplicate file descriptor");
             exit(EXIT_FAILURE);
         }

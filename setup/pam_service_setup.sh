@@ -1,5 +1,6 @@
 #!/bin/bash
-# Creates /etc/pam.d/honeypot with config
+
+#Creates /etc/pam.d/honeypot with config
 
 PAM_FILE="/etc/pam.d/froot"
 
